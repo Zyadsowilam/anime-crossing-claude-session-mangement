@@ -1,17 +1,45 @@
-# Anime Crossing — your agent threads, as a cast
+<div align="center">
 
-Every coding-agent thread on this machine is an anime character, and **you can walk around
-among them**. Each thread is dealt a cast of its own — a pirate crew, the wall scouts, a soul
-reaper division, a demon slayer corps, twenty-four in all — which decides its hair, its eyes,
-its outfit, its name and what it says to you. The same chat is the same character every time
-you open the page.
+# Anime Crossing
 
-The world is a shrine hillside under blossom, or a neon sprawl, or a spirit realm at teal
-dusk — six of them, changed with `G`. Threads arrive through a torii gate at the centre and
-leave the same way.
+### Every coding-agent thread on this machine is an anime character — and you can walk among them.
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Fork of Bot Crossing](https://img.shields.io/badge/fork%20of-bot--crossing-ff6fa5)](https://github.com/jarrenrocks/bot-crossing)
+[![Runs locally](https://img.shields.io/badge/runs-locally%2C%20nothing%20uploaded-2fae60)](#it-stays-on-your-machine)
+
+<br>
+
+<img src="docs/screenshots/hero-avenue.png" width="100%" alt="Walking down a district avenue at midday, lanterns either side, a district title fading in overhead">
+
+</div>
+
+<br>
+
+Each thread is dealt a cast of its own — a pirate crew, the wall scouts, a soul reaper
+division, a demon slayer corps, twenty-four in all — which decides its hair, its eyes, its
+outfit, its name and what it says to you. The same chat is the same character every time you
+open the page.
+
+Every repo is a **city** — real streets, real blocks, a resident on every one of its threads —
+joined to the others by roads across open country. The world itself is a shrine hillside under
+blossom, a neon sprawl, or a spirit realm at teal dusk, six of them, changed with `G`.
 
 Walk up to someone with `WASD`, press `E`, and they will say something before their thread
-card opens with **Open** and **Archive** on it. `Tab` steps back out to the overhead map.
+card opens with **Open** and **Archive** on it. `Tab` steps back to the overhead map.
+
+<br>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/world-festival.png" width="100%" alt="The same city at dusk in the festival world, warm lantern light against a pink sky"><br><sub align="center">A different world, a different sky — six in all, changed with <code>G</code></sub></td>
+<td width="50%"><img src="docs/screenshots/overhead-map.png" width="100%" alt="An overhead view of the whole colony: two dozen hexagonal cities with streets and roofs, joined by pale roads across open ground"><br><sub align="center">Every repo really is a city — <code>Tab</code> steps back to see all of them at once</sub></td>
+</tr>
+</table>
+
+<br>
+
+### It stays on your machine
 
 It reads the harness's own files, on your own machine. Nothing is uploaded, there is no
 account, and the only thing it ever writes back is a single archive flag.
@@ -19,7 +47,7 @@ account, and the only thing it ever writes back is a single archive flag.
 > **This is a fork** of [Bot Crossing](https://github.com/jarrenrocks/bot-crossing) by Jarren
 > Rocks, which is the same idea as a space colony you look down on. Everything underneath —
 > the harness adapters, the instanced crowd, the camera, the layout rule — is theirs. What
-> changed here is the cast and the fact that you are standing in it. See
+> changed here is the cast, the cities, and the fact that you are standing in it. See
 > [CONCEPT.md](CONCEPT.md) for what was actually rebuilt and why.
 >
 > Characters are original designs in an anime *style*. Nothing here reproduces a character

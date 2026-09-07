@@ -14,6 +14,7 @@ import { ShatekiGame } from './game/shateki.js'
 import { TaikoGame } from './game/taiko.js'
 import { LanternGame } from './game/lanterns.js'
 import { voiceFor } from './game/themes.js'
+import { shoptalk } from './game/shoptalk.js'
 import { Mount } from './agents/mount.js'
 import { Audio } from './core/audio.js'
 import { PLANETS } from './world/planet.js'
@@ -1050,6 +1051,7 @@ function currentStall() {
     game = spec.make(stallHost(spec.id), {
       onClose: () => {
         hud.$('.festival').classList.remove('on')
+        walk.setLocked(false)
         audio.chime('enter')
       },
     })
@@ -1061,6 +1063,9 @@ function currentStall() {
 function openStall() {
   const root = hud.$('.festival')
   root.classList.add('on')
+  // The stall takes the keyboard off the player for as long as it is up. `walk.js` listens on
+  // the same window as the page's own handler, so the guard there cannot speak for it.
+  walk.setLocked(true)
   // Only the game you are playing is on screen; the other keeps its state but stops drawing.
   for (const [id, game] of stalls) {
     const on = id === STALLS[stallIndex].id
@@ -1194,11 +1199,23 @@ function updateChatter() {
   const items = []
   for (const { agent } of near.slice(0, MAX_BUBBLES)) {
     // One line per conversation, remembered against the end time that identifies it.
-    let held = bubbleLines.get(agent)
-    if (!held || held.until !== agent.social.until) {
-      held = { until: agent.social.until, text: voiceFor(agent.id, agent.theme, Math.floor(agent.social.until)) }
-      bubbleLines.set(agent, held)
-    }
+    /**
+      * A new line every few seconds, working through what this thread actually knows.
+      *
+      * `turn` advances on a slow clock rather than per frame, so an exchange reads as two
+      * people taking turns rather than as a ticker. The content is real: see `shoptalk`,
+      * where every line is built from a field that came off disk.
+      */
+     const turn = Math.floor((performance.now() - (agent.social.startedAt || 0)) / 4200)
+     let held = bubbleLines.get(agent)
+     if (!held || held.until !== agent.social.until || held.turn !== turn) {
+       const partner = agent.social.with
+       const text =
+         shoptalk(agent, threads.find((t) => t.id === agent.id) || agent.thread, partner, partner ? threads.find((t) => t.id === partner.id) || partner.thread : null, turn) ||
+         voiceFor(agent.id, agent.theme, turn)
+       held = { until: agent.social.until, turn, text }
+       bubbleLines.set(agent, held)
+     }
     const v = chatterV.set(agent.pos.x, agent.pos.y + (colony.astronauts.headHeight || 0.75) + 0.42, agent.pos.z)
     v.project(cam)
     if (v.z > 1) continue // behind the camera
@@ -1212,6 +1229,56 @@ function updateChatter() {
   hud.setChatter(items)
 }
 const chatterV = new THREE.Vector3()
+
+/**
+ * Have one thread actually brief the other, for real.
+ *
+ * The only place in this app where the world reaches back into the harness and spends
+ * something. It builds a record of both threads from what was genuinely scanned off disk,
+ * posts it, and the *server* turns that into a prompt — the page never writes one, which is
+ * what keeps this from being a hole you could post arbitrary text into a model through.
+ *
+ * The answer is real, so it is shown as the character saying it rather than as a toast.
+ */
+async function runConfer(agent) {
+  const partner = agent?.social?.with
+  if (!agent || !partner) return
+  const mine = threads.find((t) => t.id === agent.id) || agent.thread || {}
+  const theirs = threads.find((t) => t.id === partner.id) || partner.thread || {}
+  const pack = (a, t) => ({
+    title: t.title,
+    project: t.project,
+    branch: t.gitBranch,
+    status: a.status,
+    model: t.model,
+    idleFor: t.lastActivityAt ? `${Math.round((Date.now() - t.lastActivityAt) / 3600000)}h` : '',
+  })
+
+  hud.speak(
+    { name: agent.charName, genre: agent.theme.name, accent: agent.theme.accent, line: `Thinking about what ${partner.charName} needs to know…`, options: [] },
+    {}
+  )
+  try {
+    const res = await fetch('/api/confer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: pack(agent, mine), to: pack(partner, theirs) }),
+    })
+    const data = await res.json()
+    if (!data.ok) throw new Error(data.error || 'The relay failed')
+    say({
+      name: agent.charName,
+      genre: agent.theme.name,
+      accent: agent.theme.accent,
+      line: data.reply,
+      options: [{ id: 'bye', label: 'Goodbye', action: true }],
+    })
+    audio.chime('quest')
+  } catch (err) {
+    hud.toast(err.message || 'Could not reach the other session', 'err')
+    say(dialogue.end())
+  }
+}
 
 function talkTo(agent) {
   if (!agent) {
@@ -1244,6 +1311,10 @@ function say(turn) {
       if (id === 'open') {
         actions.openThread()
         say(dialogue.end())
+        return
+      }
+      if (id === 'confer') {
+        runConfer(dialogue.agent)
         return
       }
       if (id === 'race') {

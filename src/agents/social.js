@@ -123,8 +123,11 @@ export class Social {
       if (!best) continue
 
       const until = elapsed + CHAT_MIN + Math.random() * (CHAT_MAX - CHAT_MIN)
-      a.social = { kind: 'chat', with: best, until, talker: true }
-      best.social = { kind: 'chat', with: a, until, talker: false }
+      // Wall-clock start, so the HUD can tell how far into an exchange it is and step the
+      // speech through it. `until` is on the simulation's clock and cannot answer that.
+      const startedAt = performance.now()
+      a.social = { kind: 'chat', with: best, until, startedAt, talker: true }
+      best.social = { kind: 'chat', with: a, until, startedAt, talker: false }
     }
   }
 
@@ -185,6 +188,10 @@ export class Social {
 
   _end(agent) {
     const partner = agent.social?.with
+    // Remembered past the end of the conversation: the player interrupting is the usual way
+    // one of these finishes, and at that moment "who were you just talking to" is exactly the
+    // question the page wants to ask.
+    if (partner) agent.lastPartner = partner
     agent.social = null
     // Release the other half too, but only if it was pointed back at this one — a spectator
     // dropping out must not end the celebration for everybody else.

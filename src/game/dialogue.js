@@ -198,6 +198,26 @@ export class Dialogue {
     if (this.agent?.status === 'idle') {
       out.push({ id: 'race', label: 'Race you to the stall', action: true })
     }
+    /**
+     * Ask this session to actually say something to the one it is talking to.
+     *
+     * Only offered while a conversation is genuinely in progress, because the whole point is
+     * that there is a real second thread on the other end of it. This is the one option in
+     * the game that costs a model request, so it is never automatic and never a side effect
+     * of anything else — see `server/confer.mjs`.
+     */
+    /**
+     * `social.with` is the wrong thing to ask, and asking it made this option unreachable.
+     *
+     * Walking up and pressing E *ends* whatever conversation that character was having — it
+     * turns to face you instead — so by the time this menu is built its `social` is already
+     * null and the option never appeared. The colleague it was last speaking to is the one
+     * that matters, and that is what `lastPartner` remembers.
+     */
+    const partner = this.agent?.social?.with || this.agent?.lastPartner || null
+    if (partner && partner.state !== 'gone') {
+      out.push({ id: 'confer', label: `Ask them to brief ${partner.charName}`, action: true })
+    }
     out.push({ id: 'bye', label: 'Goodbye', action: true })
     return out
   }

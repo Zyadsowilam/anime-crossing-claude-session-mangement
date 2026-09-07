@@ -93,6 +93,16 @@ export class WalkMode {
     /** Asked by the follow camera how far its boom can reach. See `Colony.viewBlocked`. */
     this.occluded = occluded
     this.active = false
+    /**
+     * Set while something else owns the keyboard — the festival stalls, today.
+     *
+     * The stall's guard lives in the page's own keydown handler, and this listener is its
+     * peer on the same window: swallowing a key there does nothing to stop it arriving here.
+     * So the arrow keys that steer the lantern basket were also strafing the player, and the
+     * character you left standing at the counter wandered off down the street while you were
+     * looking at a canvas.
+     */
+    this.locked = false
     this.held = new Set()
     this.intent = { x: 0, z: 0, run: false }
     this._forward = new THREE.Vector3()
@@ -121,6 +131,16 @@ export class WalkMode {
     const el = document.activeElement
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
     if (e.ctrlKey || e.metaKey || e.altKey) return
+    /**
+     * Nothing reaches the character while something else has the keyboard.
+     *
+     * This module keeps its *own* window listener, so the stall's guard in the page's key
+     * handler does not stop it — the two are peers on the same window, exactly like the bug
+     * where `A` both strafed left and archived the thread in front of you. Until `setLocked`
+     * was actually called, WASD played the stall game *and* walked the character off down the
+     * street behind it, so you finished a round somewhere else entirely.
+     */
+    if (this.locked) return
 
     const action = HELD.get(e.code)
     if (action) {
@@ -318,6 +338,18 @@ export class WalkMode {
     return on
   }
 
+  /**
+   * Hand the keyboard to something else, or take it back.
+   *
+   * Clearing `held` is the half that matters: you walk up to the counter holding W, and the
+   * release that would have stopped you lands while the stall has the keyboard. Without this
+   * the character keeps going for as long as the game is open.
+   */
+  setLocked(on) {
+    this.locked = on
+    this.held.clear()
+  }
+
   /** Enter or leave walk mode. Idempotent, so a key repeat cannot half-toggle it. */
   setActive(on) {
     if (on === this.active) return this.active
@@ -433,9 +465,9 @@ export class WalkMode {
   update(dt = 1 / 60) {
     if (!this.active) return null
 
-    // Inspecting a building: the character stays put at the door. Letting WASD drive it
-    // while the camera is somewhere else entirely is how you lose your own character.
-    if (this._inspect) {
+    // Inspecting a building, or standing at a stall: the character stays put. Letting WASD
+    // drive it while the camera is somewhere else entirely is how you lose your own character.
+    if (this._inspect || this.locked) {
       this.intent.x = 0
       this.intent.z = 0
       this.intent.run = false

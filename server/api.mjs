@@ -12,6 +12,7 @@ import {
   scanThreads,
   setThreadArchived,
 } from './scan.mjs'
+import { confer } from './confer.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.BOT_CROSSING_DATA || path.join(here, '..', 'data')
@@ -284,6 +285,16 @@ export async function apiMiddleware(req, res, next) {
       const result = harnessNewSession(harness || (await defaultHarness()), dir)
       if (result.ok) launch(result.url)
       return send(res, result.ok ? 200 : 400, result)
+    }
+
+    /**
+     * Two threads, actually asked to talk to each other. See `confer.mjs` for the rules —
+     * chiefly that this is never called by the simulation, only by a deliberate act of the
+     * player, because every call is a real request against the user's own quota.
+     */
+    if (url.pathname === '/api/confer' && req.method === 'POST') {
+      const result = await confer(await readJsonBody(req))
+      return send(res, result.ok ? 200 : 502, result)
     }
 
     if (url.pathname === '/api/archive' && req.method === 'POST') {

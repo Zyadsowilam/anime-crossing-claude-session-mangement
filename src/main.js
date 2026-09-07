@@ -12,6 +12,7 @@ import { Dialogue } from './game/dialogue.js'
 import { FestivalGame } from './game/festival.js'
 import { ShatekiGame } from './game/shateki.js'
 import { TaikoGame } from './game/taiko.js'
+import { LanternGame } from './game/lanterns.js'
 import { voiceFor } from './game/themes.js'
 import { Mount } from './agents/mount.js'
 import { Audio } from './core/audio.js'
@@ -655,6 +656,21 @@ engine.canvas.addEventListener('pointerleave', () => {
 
 // ── keyboard ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Key *releases*, which only the stall games care about.
+ *
+ * Everything else in this app acts on the press alone, so there has never been a keyup
+ * listener. A game steered by holding a key needs one or the basket keeps travelling after
+ * you let go — the press says "start moving" and nothing ever says "stop".
+ */
+window.addEventListener('keyup', (e) => {
+  if (!stallOpen()) return
+  const game = currentStall()
+  if (!game?.hold) return
+  if (e.key === 'ArrowLeft') game.hold('left', false)
+  else if (e.key === 'ArrowRight') game.hold('right', false)
+})
+
 window.addEventListener('keydown', (e) => {
   // Never steal keys from a field the user is actually typing in.
   const t = e.target
@@ -689,6 +705,8 @@ window.addEventListener('keydown', (e) => {
     // explicitly or it simply never receives an input.
     else if (game.strike && (e.key === 'f' || e.key === 'F')) game.strike(0)
     else if (game.strike && (e.key === 'j' || e.key === 'J')) game.strike(1)
+    else if (game.hold && e.key === 'ArrowLeft') game.hold('left', true)
+    else if (game.hold && e.key === 'ArrowRight') game.hold('right', true)
     return
   }
 
@@ -1009,6 +1027,7 @@ const STALLS = [
   { id: 'kingyo', label: 'Goldfish scooping', make: (host, opts) => new FestivalGame(host, opts) },
   { id: 'shateki', label: 'Cork shooting', make: (host, opts) => new ShatekiGame(host, opts) },
   { id: 'taiko', label: 'Taiko drumming', make: (host, opts) => new TaikoGame(host, opts) },
+  { id: 'lanterns', label: 'Lantern Drift', make: (host, opts) => new LanternGame(host, opts) },
 ]
 const stalls = new Map()
 let stallIndex = 0

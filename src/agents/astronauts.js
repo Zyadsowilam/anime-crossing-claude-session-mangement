@@ -121,6 +121,15 @@ const DRIFT_PACE = 0.55
 const ARRIVE_RADIUS = SEPARATION + 0.45
 /** How far from the camera a character is still drawn. See `_writeMatrices`. */
 const CREW_DRAW_RANGE = 88
+/**
+ * How much faster than its ordinary walk a character moves while racing.
+ *
+ * Tuned so the answer to a race is *Shift*. A character's own pace varies a little either
+ * side of the crew walk speed, and this puts a racer at roughly five units a second: walking
+ * beside them at 3.4 loses honestly, running at 7.2 wins with something in hand. A racer you
+ * could beat at a stroll is not a race, and one you cannot catch flat out is not either.
+ */
+const RACE_SPEED = 2.4
 /** Paths computed per frame. Re-routing the whole crew takes a few frames, unnoticeably. */
 const PATH_BUDGET = 6
 
@@ -691,9 +700,23 @@ export class Astronauts {
     // Down the street rather than inside the terrace it is walking towards.
     const free = this.nav?.nearestFree?.(x, z)
     if (free && this.nav.toWorld) {
-      return new THREE.Vector3(this.nav.toWorld(free.ix), 0, this.nav.toWorld(free.iz))
+      const fx = this.nav.toWorld(free.ix)
+      const fz = this.nav.toWorld(free.iz)
+      /**
+       * Free is not the same as reachable.
+       *
+       * `nearestFree` answers "is there floor here", and the middle of a walled block has
+       * plenty of floor — it is a courtyard, and the ring of houses around it is what makes
+       * it a trap rather than a garden. A character dropped in one is free by every test the
+       * grid can make and cannot walk out of it for as long as the session lasts.
+       *
+       * So the spot has to be checked against the thing it is *for*: can somebody standing
+       * here get to the door they are meant to be standing at? If not, start them at the door
+       * instead, which is on the street by construction and always reachable.
+       */
+      if (this.nav.findPath?.(fx, fz, site.x, site.z)) return new THREE.Vector3(fx, 0, fz)
     }
-    return new THREE.Vector3(x, 0, z)
+    return new THREE.Vector3(site.x, 0, site.z)
   }
 
   _spawnAgent(entry) {
@@ -831,11 +854,40 @@ export class Astronauts {
       this._sendHome(agent)
       return
     }
+    // A racer keeps its finish line. A poll landing mid-race would otherwise send it home
+    // in the middle of the street and leave the race with nobody in it.
+    if (agent.racing) return
     // A spawning agent keeps walking out of the ship; everyone else re-targets at once.
     if (agent.state !== 'spawning') agent.state = 'walking'
     agent.stateAge = 0
     agent.walkAllowance = null
     agent.pathVersion = -1
+  }
+
+  /**
+   * Send a character running to a point, and tell me when it gets there.
+   *
+   * Deliberately built on the walking state rather than beside it. A separate "racing" mover
+   * would need its own pathing, its own collision, its own animation selection and its own
+   * idea of the ground — all of which already exist and are the parts most likely to be got
+   * subtly wrong twice. So a race is an ordinary walk to an unusual destination, with the
+   * speed turned up and a flag saying who to tell on arrival.
+   */
+  startRace(agent, x, z, onFinish) {
+    if (!agent || agent.state === 'gone') return false
+    agent.racing = { onFinish, startedAt: performance.now() }
+    agent.site.set(x, agent.site.y, z)
+    agent.state = 'walking'
+    agent.stateAge = 0
+    agent.walkAllowance = null
+    agent.pathVersion = -1
+    agent.social = null
+    return true
+  }
+
+  /** Give up on a race — the player walked off, or the roster moved underneath it. */
+  cancelRace(agent) {
+    if (agent?.racing) agent.racing = null
   }
 
   _sendHome(agent) {
@@ -898,7 +950,20 @@ export class Astronauts {
     const stale =
       agent.pathVersion !== nav.version ||
       agent.pathGoal.distanceToSquared(agent.site) > 0.25
-    if (stale && this._routeBudget > 0) {
+    /**
+     * A racer never queues for its route.
+     *
+     * The budget exists so a poll that invalidates every path in the colony costs a few
+     * frames instead of one enormous one, and it is spent from the end of the roster
+     * forwards. Idlers re-target constantly as they potter, so they go stale every few
+     * seconds and take the slots first — measured, a racer sitting at a low index waited
+     * **seven seconds** before it moved, which as a starting pistol is useless.
+     *
+     * A race is one character, started by hand, a few times a session. Letting it jump the
+     * queue costs one extra path in the frame it starts and fixes the only moment where the
+     * delay is visible as a character ignoring you.
+     */
+    if (stale && (this._routeBudget > 0 || agent.racing)) {
       this._routeBudget--
       agent.path = nav.findPath(agent.pos.x, agent.pos.z, agent.site.x, agent.site.z)
       agent.pathAt = 0
@@ -943,7 +1008,7 @@ export class Astronauts {
 
       case 'walking': {
         agent.scale = Math.min(1, agent.scale + dt * 3)
-        this._walk(agent, toSite, dist, dt, 1)
+        this._walk(agent, toSite, dist, dt, agent.racing ? RACE_SPEED : 1)
         // Close enough — settle into whatever this thread is actually doing. Or close
         // enough to *give up*: a site that something was built on top of between polls can
         // never be reached, and an astronaut shouldering a wall forever is worse than one
@@ -970,6 +1035,13 @@ export class Astronauts {
         const stuck = (agent.blocked && agent.stateAge > 8) || agent.stateAge > agent.walkAllowance
         if (dist < ARRIVE_RADIUS || stuck) {
           if (stuck && dist >= ARRIVE_RADIUS) agent.site.copy(agent.pos)
+          if (agent.racing) {
+            const done = agent.racing
+            agent.racing = null
+            // Reported after the flag is cleared, so anything the callback does to this
+            // character starts from a clean state rather than fighting a race still in play.
+            done.onFinish?.(agent, { gaveUp: Boolean(stuck) })
+          }
           agent.state = agent.status === 'leaving' ? 'leaving' : 'at-site'
           agent.stateAge = 0
           agent.walkAllowance = null

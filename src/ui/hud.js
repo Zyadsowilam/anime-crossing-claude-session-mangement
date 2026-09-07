@@ -1099,6 +1099,8 @@ const TEMPLATE = `
      somebody is speaking, and CSS can only look forwards. -->
 <div class="talk-prompt"><b>E</b><span></span></div>
 
+<div class="festival"></div>
+
 <div class="help">
   <div class="sheet panel">
     <h2>Anime Crossing</h2>

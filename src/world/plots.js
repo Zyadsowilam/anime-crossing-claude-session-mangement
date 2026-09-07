@@ -213,6 +213,8 @@ const fkey = (x, z) => `${Math.round(x * 10)}:${Math.round(z * 10)}`
  * ring around it is roofline, and a place resolves as you walk into it — which is the right
  * bargain, because arriving is exactly when the detail starts being worth paying for.
  */
+/** How far along the cross street from the crossroads the district's festival stall stands. */
+const STALL_OFFSET = 6.5
 const FAR_DETAIL = 78
 /** Hysteresis on the swap, so a district does not flicker between tiers as you walk. */
 const DETAIL_SLACK = 12
@@ -916,6 +918,41 @@ export class Plot {
     this.group.add(this.surrounds)
   }
 
+  /**
+   * The one stall in each district you can actually play at.
+   *
+   * Everything else in `_buildClutter` is furniture — placed by a seeded random, merged into
+   * the same mesh, and never spoken to. This one is a *destination*: it is always in the same
+   * place relative to its district, so once you have found one you know where every other one
+   * is, and its position is handed to the colony so `E` can reach it.
+   *
+   * It stands on the cross street rather than the avenue. The avenue's frontage is where the
+   * thread buildings live and a stall parked among them competes with the doors that matter;
+   * the cross street is open road at every x, so a stall six units out from the crossroads is
+   * clear of every building and still the first thing you meet walking out of the middle of
+   * town.
+   */
+  _buildStall(solidParts, glowParts) {
+    this.stallSpots = []
+    for (const { x, z } of this.localCenters) {
+      const px = x + STALL_OFFSET
+      const pz = z
+      const built = buildFestivalProp('stall', {
+        x: px,
+        y: DECK_TOP,
+        z: pz,
+        // Front is +Z, so a quarter turn back puts the counter facing the avenue you came from.
+        yaw: -Math.PI / 2,
+        scale: 1.15,
+      })
+      solidParts.push(...built.solid)
+      glowParts.push(...built.glow)
+      this.clutterSpots.push({ x: px, z: pz, r: Math.max(0.6, built.radius * 0.9) })
+      // Where you have to stand to be served: in front of the counter, not inside it.
+      this.stallSpots.push({ x: px - 1.9, z: pz })
+    }
+  }
+
   _buildClutter() {
     const rand = mulberry(hashString(this.id) + 17)
     const solidParts = []
@@ -999,6 +1036,8 @@ export class Plot {
         }
       }
     })
+
+    this._buildStall(solidParts, glowParts)
 
     const solid = mergeProps(solidParts)
     if (solid) {
@@ -1159,7 +1198,26 @@ export class Plot {
     for (const { x: cx, z: cz } of this.localCenters) {
       for (const block of this._blockCenters(cx, cz)) {
         const geos = []
+        /**
+         * One way into the middle of every block.
+         *
+         * A block ringed all the way round is a **sealed courtyard**, and the yard inside it
+         * is open ground as far as the navigation grid is concerned — so anything that ends
+         * up in there can never path out again. It is not hypothetical: characters spawn near
+         * their own building and the nearest free cell to that is quite often the yard behind
+         * it, and a character shut in a courtyard stands still for the rest of the session,
+         * refuses to walk anywhere, and cannot be raced, met or gathered with.
+         *
+         * So each block loses the middle house on one of its four sides. That is an alley
+         * into the yard — which is what a real block of this shape has anyway — and it is
+         * chosen per block rather than at random per building, so the gap is always wide
+         * enough to walk through instead of sometimes being two half-gaps in a row.
+         */
+        const alleyEdge = Math.floor(rand() * 4)
+        const alleyAt = Math.floor((FRONT_COUNT - 1) / 2)
+        let edgeIndex = -1
         for (const dir of DIRS) {
+          edgeIndex++
           const rowX = block.x + dir.dx * BLOCK_INSET
           const rowZ = block.z + dir.dz * BLOCK_INSET
           for (let i = 0; i < FRONT_COUNT; i++) {
@@ -1174,6 +1232,8 @@ export class Plot {
             // The occasional missing tooth, so a terrace is a terrace and not a fence. Never
             // on the avenue, where a gap in the row reads as a plot waiting for a thread.
             const onAvenue = dir.dz === 0 && Math.abs(block.bx) < BLOCK && Math.sign(block.bx) === -dir.dx
+            // The alley. Never cut into the avenue's own terrace, which has to stay unbroken.
+            if (!onAvenue && edgeIndex === alleyEdge && i === alleyAt) continue
             if (!onAvenue && rand() > 0.93) continue
 
             const kind = catalogue[Math.floor(rand() * catalogue.length)]

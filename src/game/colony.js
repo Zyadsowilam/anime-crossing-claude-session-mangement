@@ -824,6 +824,29 @@ export class Colony {
     return best
   }
 
+  /**
+   * The nearest festival stall you could walk up to and play at, or null.
+   *
+   * Same shape and the same generous-ish reach as `nearestDoor`, because it competes with it
+   * for the `E` key and the two have to be comparable to be ranked against each other.
+   */
+  nearestStall(x, z, maxDist = 3.0) {
+    let best = null
+    let bestD = maxDist
+    for (const plot of this.plotOrder) {
+      for (const spot of plot.stallSpots || []) {
+        const sx = plot.center.x + spot.x
+        const sz = plot.center.z + spot.z
+        const d = Math.hypot(sx - x, sz - z)
+        if (d < bestD) {
+          bestD = d
+          best = { plot, distance: d, x: sx, z: sz }
+        }
+      }
+    }
+    return best
+  }
+
   /** Where a building's door is, in world space. Its own front, turned by its own rotation. */
   _doorAt(mesh, out) {
     const dz = mesh.userData.door || 1

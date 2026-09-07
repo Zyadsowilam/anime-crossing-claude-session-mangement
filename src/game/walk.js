@@ -70,7 +70,7 @@ export class WalkMode {
    * @param rig the camera rig to pin
    * @param onInteract called with the character you pressed the interact key at, or null
    */
-  constructor(astronauts, rig, { onInteract, onToggle, onView, onEnter, onMount, occluded, colony, mount } = {}) {
+  constructor(astronauts, rig, { onInteract, onToggle, onView, onEnter, onMount, onStall, occluded, colony, mount } = {}) {
     this.astronauts = astronauts
     this.rig = rig
     /** Needed for doorways: the colony owns the buildings and their nav footprints. */
@@ -82,6 +82,8 @@ export class WalkMode {
     this.onView = onView
     this.onEnter = onEnter
     this.onMount = onMount
+    /** Opens the festival stall when `E` lands on one. See `_reach`. */
+    this.onStall = onStall
     /** The rideable, set by the page once the scene exists. */
     this.mount = mount || null
     /** 'third' over the shoulder, or 'first' out of the character's own eyes. */
@@ -146,6 +148,7 @@ export class WalkMode {
       const choice = this._reach()
       if (choice?.kind === 'person') this.onInteract?.(choice.person)
       else if (choice?.kind === 'door') this.enterDoor(choice.door)
+      else if (choice?.kind === 'stall') this.onStall?.(choice.stall)
       return
     }
     if (e.code === 'KeyV' && this.active) {
@@ -213,10 +216,17 @@ export class WalkMode {
     const person = this.astronauts.nearestToPlayer()
     const personD = person ? Math.hypot(person.pos.x - player.pos.x, person.pos.z - player.pos.z) : Infinity
     const door = this.colony?.nearestDoor(player.pos.x, player.pos.z) || null
+    const stall = this.colony?.nearestStall(player.pos.x, player.pos.z) || null
     // A doorway has to be clearly nearer to win, so brushing past a door on the way to
-    // somebody does not keep swapping the prompt under you.
+    // somebody does not keep swapping the prompt under you. A stall is ranked the same way
+    // and against both, so standing at the counter offers the game rather than whoever
+    // happens to be walking past behind you.
+    if (stall && stall.distance + 0.6 < personD && (!door || stall.distance < door.distance)) {
+      return { kind: 'stall', stall }
+    }
     if (door && door.distance + 0.6 < personD) return { kind: 'door', door }
     if (person) return { kind: 'person', person }
+    if (stall) return { kind: 'stall', stall }
     return door ? { kind: 'door', door } : null
   }
 

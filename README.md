@@ -89,7 +89,7 @@ second process.
 | --- | --- |
 | `W` `A` `S` `D` | Walk |
 | `Shift` + those | Run |
-| `E` | Talk to whoever is closest — or open the building you are standing at |
+| `E` | Talk to whoever is closest — or open the building you are standing at, or play at the festival stall |
 | `1` `2` `3` | Reply, while a conversation is open |
 | `R` | Summon something to ride |
 | `V` | First person / third person |
@@ -100,6 +100,16 @@ second process.
 | `M` | Mute the sound |
 | `G` | Change world — six of them, each with its own architecture and weather |
 | `?` | Everything else |
+
+**Two things to play.** Every district has a **festival stall** on its cross street, a few
+paces from the crossroads: press `E` at the counter for *kingyo-sukui*, where you scoop
+goldfish with a paper net that dissolves as you use it. And any character who is **idle** will
+take you on — talk to one and pick *Race you to the stall*. They run the real streets on the
+real navigation grid, so they go round the blocks the same as you do, and they are quick
+enough that walking loses. Hold `Shift`.
+
+Neither reads or writes a thread. That is deliberate: everything else you can see means
+something, so the games are kept somewhere the data never goes.
 
 <img src="docs/screenshots/first-person.png" width="100%" alt="First-person view down a lantern-lit street, a repo's name label glowing on a lamp post ahead">
 <sub align="center"><code>V</code> drops you into first person — the same street, the same crew, from eye height.</sub>

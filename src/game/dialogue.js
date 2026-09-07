@@ -187,6 +187,17 @@ export class Dialogue {
       .map((id) => ({ id, label: TOPICS[id].label }))
     // Opening the thread is the point of the whole app, so it is always on the list.
     out.push({ id: 'open', label: 'Open this thread', action: true })
+    /**
+     * Only somebody with nothing else on will race you.
+     *
+     * A thread that is running, waiting on a reply or dormant for days is *saying something*
+     * by standing where it is, and a character that abandons that to run down the street
+     * would be decoration overriding data. An idler is already pottering about, so borrowing
+     * it for thirty seconds costs the colony nothing it was telling you.
+     */
+    if (this.agent?.status === 'idle') {
+      out.push({ id: 'race', label: 'Race you to the stall', action: true })
+    }
     out.push({ id: 'bye', label: 'Goodbye', action: true })
     return out
   }

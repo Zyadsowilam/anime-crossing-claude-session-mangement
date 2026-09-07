@@ -9,6 +9,7 @@ import { Hud } from './ui/hud.js'
 import { WalkMode } from './game/walk.js'
 import { Quests } from './game/quests.js'
 import { Dialogue } from './game/dialogue.js'
+import { FestivalGame } from './game/festival.js'
 import { Mount } from './agents/mount.js'
 import { Audio } from './core/audio.js'
 import { PLANETS } from './world/planet.js'
@@ -296,6 +297,7 @@ const walk = new WalkMode(colony.astronauts, rig, {
   // the wrong thing to ask.
   occluded: (x, z) => colony.viewBlocked(x, z),
   onInteract: (agent) => talkTo(agent),
+  onStall: () => openStall(),
   onToggle: (on) => {
     hud.setWalkMode?.(on)
     if (!on) hud.closeTalk?.()
@@ -697,6 +699,25 @@ window.addEventListener('keydown', (e) => {
   }
 
   /**
+   * The stall owns the keyboard while it is open.
+   *
+   * `Esc` leaves, `E` buys another net once the paper has gone. Everything else is swallowed,
+   * because the alternative is walking out of the stall you are standing at — or archiving a
+   * thread with the same hand you are scooping with, which is the exact class of bug the
+   * guard below this one exists to stop.
+   */
+  if (stallOpen()) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      stall.close()
+    } else if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault()
+      if (stall.over) stall.restart()
+    }
+    return
+  }
+
+  /**
    * While you are walking, the movement keys are *only* movement keys.
    *
    * Both handlers listen on `window`, and `walk.js` calls `preventDefault()` on the keys it
@@ -950,6 +971,101 @@ const WALK_KEYS = new Set([
   'KeyR',
 ])
 
+/**
+ * The festival stall: opened by `E` at the counter, closed by `Esc` or by walking off.
+ *
+ * Built once and kept, rather than made and thrown away each visit — the canvas, its
+ * listeners and the fish all survive between openings, so stepping up to a second stall is
+ * instant and there is nothing to leak.
+ *
+ * It deliberately takes the keyboard while it is open (see the guard in the keydown handler).
+ * A game you can walk away from mid-scoop is a game the world is still moving underneath,
+ * and the whole point of a stall is that you have stopped at it.
+ */
+let stall = null
+
+function openStall() {
+  if (!stall) {
+    stall = new FestivalGame(hud.$('.festival'), {
+      onClose: () => {
+        hud.$('.festival').classList.remove('on')
+        audio.chime('enter')
+      },
+    })
+  }
+  hud.$('.festival').classList.add('on')
+  stall.over ? stall.restart() : stall.start()
+  audio.chime('talk')
+}
+
+function stallOpen() {
+  return Boolean(stall?.running) && hud.$('.festival').classList.contains('on')
+}
+
+/**
+ * A footrace against one of the crew, from wherever you are standing to that district's
+ * festival stall.
+ *
+ * The finish is the stall rather than an arbitrary marker because it is somewhere you can
+ * already see and already know how to find — a race to a point you have to be *told* about
+ * is a race spent reading the HUD instead of running. It is also the one landmark every
+ * district has in the same place, so the game is the same game in every city.
+ *
+ * The colony keeps running underneath: your opponent uses the ordinary navigation grid, so
+ * it takes the streets, goes round the buildings, and is slowed by the same corners you are.
+ */
+const RACE_FINISH_RADIUS = 2.6
+let race = null
+
+function startRace(agent) {
+  const plot = colony.plotAt(agent.pos.x, agent.pos.z)
+  const spot = plot?.stallSpots?.[0]
+  if (!plot || !spot) {
+    hud.hint('No stall nearby to race to')
+    return
+  }
+  const finish = { x: plot.center.x + spot.x, z: plot.center.z + spot.z }
+  const started = colony.astronauts.startRace(agent, finish.x, finish.z, (who, { gaveUp } = {}) => {
+    // The character got there. If the race is still live, they beat you to it.
+    if (race?.agent === who && !race.done) finishRace(gaveUp ? 'void' : 'them')
+  })
+  if (!started) return
+  race = { agent, finish, done: false, startedAt: performance.now() }
+  // Deliberately not the area banner: `checkArea` owns that every frame and would either
+  // stamp on this or be stamped on by it. A race is an event, and events are hints.
+  hud.hint(`Go! ${agent.charName} is running to the stall — hold Shift`)
+  audio.chime('quest')
+}
+
+/**
+ * Called every frame while a race is live: have *you* got there, and is the race still real?
+ */
+function updateRace() {
+  if (!race || race.done) return
+  const player = colony.astronauts.player
+  if (!player) return finishRace('void')
+  // Walking out of the district, or opening a thread, abandons it — a race you have wandered
+  // away from should not still be waiting to congratulate you.
+  if (performance.now() - race.startedAt > 90000) return finishRace('void')
+  const d = Math.hypot(player.pos.x - race.finish.x, player.pos.z - race.finish.z)
+  if (d < RACE_FINISH_RADIUS) finishRace('you')
+}
+
+function finishRace(who) {
+  if (!race || race.done) return
+  race.done = true
+  colony.astronauts.cancelRace(race.agent)
+  const name = race.agent?.charName || 'They'
+  if (who === 'you') {
+    hud.toast(`You beat ${name} to the stall`)
+    audio.chime('quest')
+  } else if (who === 'them') {
+    hud.toast(`${name} got there first`)
+    audio.chime('need')
+  }
+  race = null
+}
+
 function talkTo(agent) {
   if (!agent) {
     hud.hint('Nobody close enough. Walk up to someone and press E.')
@@ -981,6 +1097,12 @@ function say(turn) {
       if (id === 'open') {
         actions.openThread()
         say(dialogue.end())
+        return
+      }
+      if (id === 'race') {
+        const opponent = dialogue.agent
+        say(dialogue.end())
+        if (opponent) startRace(opponent)
         return
       }
       if (id === 'bye') {
@@ -1027,6 +1149,7 @@ engine.add({
       walking: walk.active,
     })
     checkArea()
+    updateRace()
     rig.update(dt)
     colony.update(dt, elapsed, rig.target)
     // The prompt says whichever of the three things E would actually do.

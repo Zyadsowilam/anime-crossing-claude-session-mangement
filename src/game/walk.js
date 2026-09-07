@@ -77,6 +77,8 @@ export class WalkMode {
     this.colony = colony
     /** The doorway in reach, or null. Recomputed each frame alongside the talk target. */
     this.door = null
+    /** The festival stall in reach, or null. Recomputed each frame beside `door`. */
+    this.stall = null
     this.onInteract = onInteract
     this.onToggle = onToggle
     this.onView = onView
@@ -503,6 +505,10 @@ export class WalkMode {
     const choice = this._reach()
     this.target = choice?.kind === 'person' ? choice.person : null
     this.door = choice?.kind === 'door' ? choice.door : null
+    // Tracked for the same reason as the door: the HUD has to be able to say what E would do
+    // before you press it. Without this the stall was reachable and completely unadvertised —
+    // you had to already know it was there and press E at nothing.
+    this.stall = choice?.kind === 'stall' ? choice.stall : null
     return this.target
   }
 }

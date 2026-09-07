@@ -64,6 +64,46 @@ function dome(radius, floor = 0, wSeg = 14, hSeg = 9) {
   return new THREE.SphereGeometry(radius, wSeg, hSeg, 0, phiLength, 0, thetaLength)
 }
 
+/**
+ * Cut a face out of a hair shell.
+ *
+ * `dome` builds a *full* sphere section — all the way round the head, down to the floor it is
+ * given. That is right for the back and the sides and completely wrong for the front: a
+ * hairstyle with any length to it (most of them are between -R*0.5 and -R*0.66) came down over
+ * the brow, the eyes and half the nose as one smooth unbroken shell, and since the face decal
+ * sits just outside it you got eyes painted onto a helmet. Every long-haired character in the
+ * colony was wearing a motorcycle helmet in their own hair colour.
+ *
+ * Raising the floor is the obvious fix and the wrong one: it shortens the hair everywhere,
+ * so the long styles lose the silhouette that distinguishes them and every character ends up
+ * with the same crop. What hair actually has is a **hairline** — deep at the back and sides,
+ * stopping on the forehead at the front — and that is what this cuts.
+ *
+ * Vertices below the brow are lifted toward it in proportion to how far forward they face,
+ * squared so the hairline curves around the temples instead of slicing a straight chord
+ * across the head. Nothing at the sides or the back moves at all, so the length is kept.
+ * The fringe still hangs over the forehead; it is built from separate strands with gaps
+ * between them, which is the part that reads as hair rather than as a shell.
+ */
+function faceOpening(geo, brow) {
+  const pos = geo.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i)
+    if (y >= brow) continue
+    const x = pos.getX(i)
+    const z = pos.getZ(i)
+    const horiz = Math.hypot(x, z)
+    // +Z is the character's front, so this is 1 straight ahead and 0 at the ears and behind.
+    const forward = horiz > 1e-6 ? Math.max(0, z / horiz) : 0
+    if (forward <= 0) continue
+    const t = forward * forward
+    pos.setY(i, y + (brow - y) * t)
+  }
+  pos.needsUpdate = true
+  geo.computeVertexNormals()
+  return geo
+}
+
 /** Place a geometry: rotate (XYZ euler), then translate. Returns the same geometry. */
 function put(g, x, y, z, rx = 0, ry = 0, rz = 0, scale = null) {
   if (scale) g.scale(scale.x ?? scale, scale.y ?? scale, scale.z ?? scale)
@@ -157,8 +197,15 @@ function fringe(count = 5, drop = 0.3, spread = 1.5) {
  * hair at all, so the default reaches well below the head's equator and each style only
  * raises it where a shaved or tied-back silhouette actually wants scalp showing.
  */
-function cap(lift = 1.03, floor = -R * 0.62) {
-  return put(dome(R * lift, floor), 0, HEAD_UP, 0)
+/**
+ * The shell of a hairstyle, with a face cut out of it.
+ *
+ * `brow` is where the hair stops at the front. It sits a touch under the head's own centre,
+ * which is above the eye line — the fringe is what covers the forehead, and it is meant to be
+ * seen through.
+ */
+function cap(lift = 1.03, floor = -R * 0.62, brow = -R * 0.1) {
+  return put(faceOpening(dome(R * lift, floor), brow), 0, HEAD_UP, 0)
 }
 
 // ── the hairstyles ─────────────────────────────────────────────────────────────────────
@@ -353,16 +400,10 @@ const HAIR_BUILDERS = {
 
   /** Very long and wild — the late-arc power-up silhouette. */
   wild() {
-    /**
-     * The solid part of the hair stops above the eyes; the fringe covers the rest.
-     *
-     * At a floor of -R*0.5 the dome itself came down to the eye line, and a dome is smooth —
-     * so the front of the head was one unbroken shell of hair colour with the eyes painted on
-     * top of it. It read as a helmet, or as a mask, which is exactly what it is not meant to
-     * be. Stopping the shell on the forehead hands the job to `fringe`, which has strands and
-     * gaps and parts in the middle, and is the thing that actually looks like hair.
-     */
-    const parts = [cap(1.02, -R * 0.14), ...fringe(5, 0.28, 1.6)]
+    // Long again. Shortening the whole shell was the first attempt at getting the face out
+    // from under this, and it cost the style the length its name is about; `cap` now cuts the
+    // face opening itself, so the back and sides can stay as long as they were meant to be.
+    const parts = [cap(1.02, -R * 0.5), ...fringe(5, 0.28, 1.6)]
     const spikes = 13
     for (let i = 0; i < spikes; i++) {
       // Behind the temples only. Swept the full way round, the front spikes hang down over

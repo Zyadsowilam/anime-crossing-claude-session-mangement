@@ -10,6 +10,7 @@ import { WalkMode } from './game/walk.js'
 import { Quests } from './game/quests.js'
 import { Dialogue } from './game/dialogue.js'
 import { FestivalGame } from './game/festival.js'
+import { ShatekiGame } from './game/shateki.js'
 import { Mount } from './agents/mount.js'
 import { Audio } from './core/audio.js'
 import { PLANETS } from './world/planet.js'
@@ -666,6 +667,24 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.metaKey || e.ctrlKey || e.altKey) return
 
+  /**
+   * The stall owns the keyboard while it is open, and it has to say so *before* Tab is
+   * claimed for the walk/map toggle below — otherwise stepping between the two games quietly
+   * threw you out of the colony instead.
+   *
+   * `Esc` leaves, `Tab` swaps stall, `E` buys another go once you have run out. Everything
+   * else is swallowed: the alternative is walking away from the stall you are standing at, or
+   * archiving a thread with the hand you are scooping with.
+   */
+  if (stallOpen()) {
+    e.preventDefault()
+    const game = currentStall()
+    if (e.key === 'Escape') game.close()
+    else if (e.key === 'Tab') nextStall()
+    else if ((e.key === 'e' || e.key === 'E') && game.over) game.restart()
+    return
+  }
+
   // Tab steps between being in the colony and looking down at it. It is the one key that
   // has to work in both modes, so it sits above the switch rather than inside it.
   if (e.key === 'Tab') {
@@ -706,17 +725,6 @@ window.addEventListener('keydown', (e) => {
    * thread with the same hand you are scooping with, which is the exact class of bug the
    * guard below this one exists to stop.
    */
-  if (stallOpen()) {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      stall.close()
-    } else if (e.key === 'e' || e.key === 'E') {
-      e.preventDefault()
-      if (stall.over) stall.restart()
-    }
-    return
-  }
-
   /**
    * While you are walking, the movement keys are *only* movement keys.
    *
@@ -982,24 +990,73 @@ const WALK_KEYS = new Set([
  * A game you can walk away from mid-scoop is a game the world is still moving underneath,
  * and the whole point of a stall is that you have stopped at it.
  */
-let stall = null
+/**
+ * The stalls, and which one you are standing at.
+ *
+ * Each game owns its own canvas element rather than sharing one, because they keep live state
+ * (fish mid-swim, targets mid-slide) and tearing that down and rebuilding it on every switch
+ * would make swapping games feel like loading rather than like turning around. They are built
+ * on first use, so a session that never visits the festival never pays for either.
+ */
+const STALLS = [
+  { id: 'kingyo', label: 'Goldfish scooping', make: (host, opts) => new FestivalGame(host, opts) },
+  { id: 'shateki', label: 'Cork shooting', make: (host, opts) => new ShatekiGame(host, opts) },
+]
+const stalls = new Map()
+let stallIndex = 0
 
-function openStall() {
-  if (!stall) {
-    stall = new FestivalGame(hud.$('.festival'), {
+function stallHost(id) {
+  const root = hud.$('.festival')
+  let host = root.querySelector(`[data-stall="${id}"]`)
+  if (!host) {
+    host = document.createElement('div')
+    host.dataset.stall = id
+    root.appendChild(host)
+  }
+  return host
+}
+
+function currentStall() {
+  const spec = STALLS[stallIndex]
+  let game = stalls.get(spec.id)
+  if (!game) {
+    game = spec.make(stallHost(spec.id), {
       onClose: () => {
         hud.$('.festival').classList.remove('on')
         audio.chime('enter')
       },
     })
+    stalls.set(spec.id, game)
   }
-  hud.$('.festival').classList.add('on')
-  stall.over ? stall.restart() : stall.start()
+  return game
+}
+
+function openStall() {
+  const root = hud.$('.festival')
+  root.classList.add('on')
+  // Only the game you are playing is on screen; the other keeps its state but stops drawing.
+  for (const [id, game] of stalls) {
+    const on = id === STALLS[stallIndex].id
+    stallHost(id).style.display = on ? '' : 'none'
+    if (!on) game.running = false
+  }
+  const game = currentStall()
+  stallHost(STALLS[stallIndex].id).style.display = ''
+  game.over ? game.restart() : game.start()
+  hud.hint(`${STALLS[stallIndex].label} — Tab for the other stall, Esc to leave`)
   audio.chime('talk')
 }
 
+/** Step to the next stall without leaving the festival. */
+function nextStall() {
+  const leaving = stalls.get(STALLS[stallIndex].id)
+  if (leaving) leaving.running = false
+  stallIndex = (stallIndex + 1) % STALLS.length
+  openStall()
+}
+
 function stallOpen() {
-  return Boolean(stall?.running) && hud.$('.festival').classList.contains('on')
+  return hud.$('.festival').classList.contains('on')
 }
 
 /**
@@ -1161,7 +1218,9 @@ engine.add({
             ? { id: near.id, label: `Talk to ${near.charName}` }
             : walk.door
               ? { id: 'door:' + walk.door.id, label: `Enter the ${String(walk.door.entry.mesh.userData.label || 'building').toLowerCase()}` }
-              : null
+              : walk.stall
+                ? { id: 'stall', label: 'Play at the festival stall' }
+                : null
         : null
     )
     // Whatever the camera is orbiting is what should be in focus.

@@ -1820,3 +1820,54 @@ kbd {
 .fest-close:hover {
   background: rgba(255, 255, 255, 0.12);
 }
+
+/* ── what the crew are saying to each other ──────────────────────────────────────────
+   Bubbles float over talking pairs. Pointer-events off throughout: these sit on top of
+   the world and must never eat a click meant for the character underneath them. */
+.chatter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.chat-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 190px;
+  padding: 6px 10px;
+  border-radius: 11px;
+  background: rgba(16, 18, 24, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f0eee9;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  will-change: transform;
+}
+/* The tail, so a bubble points at the person saying it rather than hovering unattached. */
+.chat-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  background: inherit;
+  border-right: inherit;
+  border-bottom: inherit;
+  transform: rotate(45deg);
+}
+/* A new line fades in. Only opacity is animated: the transform carries the bubble's screen
+   position and is rewritten every frame, so animating it here would fight that and snap the
+   bubble to the corner for the length of the animation. */
+.chat-bubble.say {
+  animation: bubble-pop 0.22s ease-out;
+}
+@keyframes bubble-pop {
+  from {
+    opacity: 0;
+  }
+}

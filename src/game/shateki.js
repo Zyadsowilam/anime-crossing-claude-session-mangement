@@ -79,17 +79,30 @@ export class ShatekiGame {
     this.scoreEl = this.host.querySelector('.fest-score')
     this.corksEl = this.host.querySelector('.fest-paper i')
 
-    this._onMove = (e) => {
+    /**
+     * Where the pointer is, in play-area units.
+     *
+     * Called from *both* move and down. Reading it only on move was a real bug and a
+     * miserable one to be on the wrong end of: a click that arrives without a preceding
+     * move — a tap, a fast click into the canvas, a pointer that entered and pressed in the
+     * same frame — was judged against wherever the pointer was last seen, which at the start
+     * of a game is the middle of the board. It looked exactly like the game ignoring you.
+     */
+    this._track = (e) => {
       const r = this.canvas.getBoundingClientRect()
+      if (!r.width || !r.height) return
       this.pointer.x = ((e.clientX - r.left) / r.width) * W
       this.pointer.y = ((e.clientY - r.top) / r.height) * H
       this.pointer.inside = true
     }
+    this._onMove = (e) => this._track(e)
     this._onLeave = () => {
       this.pointer.inside = false
     }
     this._onDown = (e) => {
       e.preventDefault()
+      // Aim at where the click actually landed, not where the mouse was last seen moving.
+      this._track(e)
       this._fire()
     }
     this.canvas.addEventListener('pointermove', this._onMove)

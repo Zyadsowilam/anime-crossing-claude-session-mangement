@@ -12,6 +12,7 @@ import { Dialogue } from './game/dialogue.js'
 import { FestivalGame } from './game/festival.js'
 import { ShatekiGame } from './game/shateki.js'
 import { TaikoGame } from './game/taiko.js'
+import { voiceFor } from './game/themes.js'
 import { Mount } from './agents/mount.js'
 import { Audio } from './core/audio.js'
 import { PLANETS } from './world/planet.js'
@@ -1130,6 +1131,69 @@ function finishRace(who) {
   race = null
 }
 
+/**
+ * Show what the crew are saying to each other.
+ *
+ * The badge said *that* two characters were talking; this says *what*. A speech bubble is the
+ * difference between "something is happening over there" and a colony that feels inhabited,
+ * and it costs one projection per speaker because the crew already computes its own screen
+ * position for click-picking.
+ *
+ * Lines are chosen once per conversation and held for its whole length, keyed off the
+ * conversation's own end time — re-rolling per frame would be a stroboscope, and re-rolling
+ * per tick would still read as a character with no train of thought. They come from the same
+ * `voiceFor` the dialogue box uses, so a character says things in the voice its theme gives
+ * it rather than in a generic one.
+ *
+ * Only the nearest few are drawn. Every bubble past the third is unreadable anyway at the
+ * distance they start stacking up, and a screen of overlapping labels is worse than none.
+ */
+const MAX_BUBBLES = 4
+/** How far away a conversation is still worth reading. */
+const BUBBLE_RANGE = 26
+const bubbleLines = new WeakMap()
+
+function updateChatter() {
+  if (!walk.active || !hud.setChatter) return hud.setChatter?.([])
+  const cam = engine.camera
+  const player = colony.astronauts.player
+  if (!player) return hud.setChatter([])
+
+  const near = []
+  for (const agent of colony.astronauts.agents) {
+    const social = agent.social
+    if (!social || social.kind !== 'chat' || !social.talker) continue
+    const d = Math.hypot(agent.pos.x - player.pos.x, agent.pos.z - player.pos.z)
+    if (d > BUBBLE_RANGE) continue
+    near.push({ agent, d })
+  }
+  if (!near.length) return hud.setChatter([])
+  near.sort((a, b) => a.d - b.d)
+
+  const w = engine.viewport?.w || window.innerWidth
+  const h = engine.viewport?.h || window.innerHeight
+  const items = []
+  for (const { agent } of near.slice(0, MAX_BUBBLES)) {
+    // One line per conversation, remembered against the end time that identifies it.
+    let held = bubbleLines.get(agent)
+    if (!held || held.until !== agent.social.until) {
+      held = { until: agent.social.until, text: voiceFor(agent.id, agent.theme, Math.floor(agent.social.until)) }
+      bubbleLines.set(agent, held)
+    }
+    const v = chatterV.set(agent.pos.x, agent.pos.y + (colony.astronauts.headHeight || 0.75) + 0.42, agent.pos.z)
+    v.project(cam)
+    if (v.z > 1) continue // behind the camera
+    items.push({
+      x: (v.x * 0.5 + 0.5) * w,
+      y: (-v.y * 0.5 + 0.5) * h,
+      text: held.text,
+      accent: '#' + agent.outfit.getHexString(),
+    })
+  }
+  hud.setChatter(items)
+}
+const chatterV = new THREE.Vector3()
+
 function talkTo(agent) {
   if (!agent) {
     hud.hint('Nobody close enough. Walk up to someone and press E.')
@@ -1214,6 +1278,7 @@ engine.add({
     })
     checkArea()
     updateRace()
+    updateChatter()
     rig.update(dt)
     colony.update(dt, elapsed, rig.target)
     // The prompt says whichever of the three things E would actually do.

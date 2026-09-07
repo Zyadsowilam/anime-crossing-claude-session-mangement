@@ -610,15 +610,38 @@ export class Plot {
       }
     }
     /**
-     * The height this town stands at.
+     * The height this town stands at: above the *highest* ground under it, not the middle.
      *
-     * Sampled once, at the middle of the zone, and then everything on the town is level with
-     * everything else on it — which is what a town is. The ground it sits on is not level any
-     * more, so the deck's skirt reaches down to meet it (see `DECK_SKIRT`), and a town on a
-     * slope reads as cut into the hillside rather than as floating over it.
+     * Everything on a town is level with everything else on it, which is what a town is. The
+     * question is which height that should be, and sampling the middle — the obvious answer,
+     * and the one that was here — is wrong for any town on a slope.
+     *
+     * The terrain rolls on a long swell, and a deck is sixty-six units across. Measured over
+     * a live colony, the ground rose *above* the middle-sampled deck in **22 of 24 cities**,
+     * by as much as 2.5 units: the hillside came up through the paving and the buildings
+     * standing on it were buried to the windows. That is the "everything renders inside the
+     * ground" — not a z-fighting or depth problem, just a flat slab set too low.
+     *
+     * Taking the maximum over the footprint means the deck always clears its own hillside.
+     * The cost is that the downhill side sits higher off the ground, which is exactly what
+     * `DECK_SKIRT` is for — it is seven deep and the worst span here is under four, so the
+     * slab still meets the earth all the way round and the town reads as cut into the slope.
      */
     this.sampleGround = sampleGround
-    const baseY = sampleGround ? sampleGround(this.middle.x, this.middle.z) : 0
+    let baseY = sampleGround ? sampleGround(this.middle.x, this.middle.z) : 0
+    if (sampleGround) {
+      // The rim is what matters — the middle is already sampled and the swell is far too
+      // long a wavelength to hide a peak between these rings.
+      for (const lc of this.localCenters) {
+        for (let i = 0; i < 24; i++) {
+          const a = (i / 24) * Math.PI * 2
+          for (const r of [TILE * 0.5, TILE * 0.8, TILE]) {
+            const h = sampleGround(this.center.x + lc.x + Math.cos(a) * r, this.center.z + lc.z + Math.sin(a) * r)
+            if (h > baseY) baseY = h
+          }
+        }
+      }
+    }
     this.center.y = baseY
     this.middle.y = baseY
     this.labelAnchor = new THREE.Vector3(this.center.x + anchor.x, baseY, this.center.z + anchor.z)

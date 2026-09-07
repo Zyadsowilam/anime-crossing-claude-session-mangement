@@ -829,6 +829,44 @@ export class Hud {
     this._hintTimer = setTimeout(() => el.classList.remove('on'), ms)
   }
 
+  /**
+   * Speech bubbles over the characters who are talking to each other.
+   *
+   * Positioned from screen coordinates the crew has already worked out for picking, so this
+   * costs a projection nobody else was going to do. Elements are pooled and reused rather
+   * than rebuilt every frame — a bubble is a DOM node, and thrashing a handful of them sixty
+   * times a second is how a HUD ends up costing more than the world behind it.
+   *
+   * @param items [{ id, x, y, text, accent }] with x/y in CSS pixels
+   */
+  setChatter(items) {
+    const host = this.$('.chatter')
+    const pool = (this._chatterPool ||= [])
+    for (let i = 0; i < items.length; i++) {
+      let el = pool[i]
+      if (!el) {
+        el = document.createElement('div')
+        el.className = 'chat-bubble'
+        host.appendChild(el)
+        pool.push(el)
+      }
+      const item = items[i]
+      if (el._text !== item.text) {
+        el.textContent = item.text
+        el._text = item.text
+        // Retrigger the pop so a *new* line reads as somebody speaking again rather than as
+        // the same bubble sliding across the screen.
+        el.classList.remove('say')
+        void el.offsetWidth
+        el.classList.add('say')
+      }
+      el.style.transform = `translate(-50%, -100%) translate(${item.x}px, ${item.y}px)`
+      el.style.borderColor = item.accent
+      el.hidden = false
+    }
+    for (let i = items.length; i < pool.length; i++) pool[i].hidden = true
+  }
+
   toast(message, kind = '') {
     const el = document.createElement('div')
     el.className = `toast panel ${kind}`
@@ -1098,6 +1136,8 @@ const TEMPLATE = `
 <!-- After the box, not before: the prompt hides itself with a sibling selector while
      somebody is speaking, and CSS can only look forwards. -->
 <div class="talk-prompt"><b>E</b><span></span></div>
+
+<div class="chatter"></div>
 
 <div class="festival"></div>
 

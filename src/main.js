@@ -11,6 +11,7 @@ import { Quests } from './game/quests.js'
 import { Dialogue } from './game/dialogue.js'
 import { FestivalGame } from './game/festival.js'
 import { ShatekiGame } from './game/shateki.js'
+import { TaikoGame } from './game/taiko.js'
 import { Mount } from './agents/mount.js'
 import { Audio } from './core/audio.js'
 import { PLANETS } from './world/planet.js'
@@ -682,6 +683,11 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') game.close()
     else if (e.key === 'Tab') nextStall()
     else if ((e.key === 'e' || e.key === 'E') && game.over) game.restart()
+    // A game that wants keys of its own gets them. Only the drums do, and only two — but the
+    // guard swallows everything by default, so anything playable has to be let through here
+    // explicitly or it simply never receives an input.
+    else if (game.strike && (e.key === 'f' || e.key === 'F')) game.strike(0)
+    else if (game.strike && (e.key === 'j' || e.key === 'J')) game.strike(1)
     return
   }
 
@@ -1001,6 +1007,7 @@ const WALK_KEYS = new Set([
 const STALLS = [
   { id: 'kingyo', label: 'Goldfish scooping', make: (host, opts) => new FestivalGame(host, opts) },
   { id: 'shateki', label: 'Cork shooting', make: (host, opts) => new ShatekiGame(host, opts) },
+  { id: 'taiko', label: 'Taiko drumming', make: (host, opts) => new TaikoGame(host, opts) },
 ]
 const stalls = new Map()
 let stallIndex = 0
@@ -1241,7 +1248,23 @@ engine.start()
 boot()
 
 // Handy for poking at the running colony from the console.
-window.botCrossing = { engine, rig, colony, settings, hud, poll, walk, audio, quests, get threads() { return threads } }
+window.botCrossing = {
+  engine,
+  rig,
+  colony,
+  settings,
+  hud,
+  poll,
+  walk,
+  audio,
+  quests,
+  // The festival stalls, so a game can be stepped and inspected from the console the same
+  // way the colony can. They are built lazily, so this is empty until one has been opened.
+  stalls,
+  get threads() {
+    return threads
+  },
+}
 
 /** `execCommand('copy')` over a throwaway textarea — the copy that predates permissions. */
 function copyFallback(text) {

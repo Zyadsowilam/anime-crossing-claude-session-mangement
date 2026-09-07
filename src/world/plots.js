@@ -1422,7 +1422,7 @@ export class Plot {
  */
 export function createLabel(text, accent, pixelRatio = 4) {
   const fontSize = 34
-  const font = `500 ${fontSize}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`
+  const font = `600 ${fontSize}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`
   const dot = 9
   const gap = 10
   const pad = 14
@@ -1448,10 +1448,14 @@ export function createLabel(text, accent, pixelRatio = 4) {
   const textX = pad + dot + gap
   const midY = h / 2
 
-  c.shadowColor = 'rgba(0,0,0,0.85)'
-  c.shadowBlur = 9
+  // The halo is the only thing separating the name from what is behind it, and what is
+  // behind it is now usually a roof rather than grass. Pale tile under white text needs a
+  // deeper, wider shadow than dirt did — four passes rather than three, because each pass
+  // compounds the same blur and that is cheaper than one enormous one.
+  c.shadowColor = 'rgba(0,0,0,0.92)'
+  c.shadowBlur = 12
   c.fillStyle = 'rgba(0,0,0,0.9)'
-  for (let i = 0; i < 3; i++) c.fillText(text, textX, midY) // build the halo up in passes
+  for (let i = 0; i < 4; i++) c.fillText(text, textX, midY) // build the halo up in passes
   c.beginPath()
   c.arc(pad + dot / 2, midY, dot / 2, 0, Math.PI * 2)
   c.fill()
@@ -1488,12 +1492,36 @@ export function createLabel(text, accent, pixelRatio = 4) {
     toneMapped: false,
     opacity: 0,
   })
+  /**
+   * Billboard the plate, and hold it at a readable size however far away it is.
+   *
+   * The two terms do different jobs and the second one is the important one. A plate of fixed
+   * world size shrinks as `1/distance` and is unreadable across a colony this wide, so the
+   * size is grown *with* distance — which makes the screen size converge on a constant, and
+   * that constant is what the second coefficient sets.
+   *
+   * It is worth doing the arithmetic rather than tuning by eye, because the old value looked
+   * plausible and was not. Screen height as a fraction of the viewport is
+   *
+   *     plateHeight * ( a + b * d ) / ( 2 * d * tan( fov/2 ) )
+   *
+   * which for large `d` tends to `plateHeight * b / (2 * tan( fov/2 ))`. At the old `b` of
+   * 0.03, with a 0.56 plate and a 55° field of view, that is 1.8% of the viewport — about
+   * **seven pixels of cap height** on a 720p window, at every distance past the near field.
+   * Seven pixels is not small, it is illegible, and it is why a map of two dozen cities had
+   * nothing on it you could read.
+   *
+   * At 0.095 the same sum lands near 5% of the viewport, or roughly twenty pixels of cap
+   * height, and holds there from fifty units out to the far side of the world. The near-field
+   * term comes down to compensate, so standing next to a city does not put its name across
+   * your whole screen.
+   */
   mat.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader.replace(
       '#include <project_vertex>',
       `vec4 mvPosition = modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 );
        float dist = -mvPosition.z;
-       mvPosition.xy += position.xy * ( 0.55 + dist * 0.03 );
+       mvPosition.xy += position.xy * ( 0.30 + dist * 0.095 );
        gl_Position = projectionMatrix * mvPosition;`
     )
   }

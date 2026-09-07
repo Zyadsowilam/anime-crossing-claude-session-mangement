@@ -46,6 +46,10 @@ const STALE_MS = 3 * 24 * 60 * 60 * 1000
 /** How wide an astronaut is, for the purpose of not fitting through gaps it should not. */
 /** Bucket size for the camera's blocker index — comfortably wider than any frontage. */
 const BLOCKER_BUCKET = 6
+/** How far above its own ground a city's name plate floats — clear of the tallest roof. */
+const LABEL_HEIGHT = 13
+/** What a city with nothing happening in it fades its name back to, rather than hiding it. */
+const QUIET_LABEL = 0.72
 const AGENT_RADIUS = 0.26
 /** Progress a live thread adds per second, so a working site visibly grows while you watch. */
 const LIVE_GROWTH = 0.004
@@ -437,7 +441,16 @@ export class Colony {
       this.plotGroup.add(plot.group)
 
       const label = createLabel(name, accent)
-      label.position.set(plot.labelAnchor.x, 3.2, plot.labelAnchor.z)
+      /**
+       * Above the roofs, and measured from the city's own ground.
+       *
+       * The old height was a bare 3.2 in world space, which was fine when a zone was a low
+       * platform on flat ground and wrong twice over now: a city stands on a deck at whatever
+       * height the terrain dealt it, and its pagodas and towers reach well past three units.
+       * A plate left at 3.2 sits *among* the roofs — it still draws (it ignores depth) but it
+       * reads as a sticker stuck on a building rather than as the name of the place.
+       */
+      label.position.set(plot.labelAnchor.x, plot.labelAnchor.y + LABEL_HEIGHT, plot.labelAnchor.z)
       plot.label = label
       this.labelGroup.add(label)
     })
@@ -970,12 +983,28 @@ export class Colony {
    * Names fade in for the plots that have something going on, and for whichever one you are
    * pointing at. Everywhere else the colony stays unlabelled.
    */
+  /**
+   * Every city says its name.
+   *
+   * This used to show a name only while somebody in that repo was working, waiting or stuck,
+   * and hide it otherwise — a deliberate choice, and the right one when the whole colony fitted
+   * on screen as a handful of small platforms you could tell apart by shape. It does not
+   * survive the world getting bigger. Two dozen cities of the same architecture, most of them
+   * quiet at any given moment, means a map with almost nothing written on it and no way to
+   * tell which district you are looking at or flying toward.
+   *
+   * So a name is always drawn, and *activity* is carried by brightness instead of by
+   * existence: a city with something happening in it reads at full strength, a quiet one sits
+   * back at `QUIET_LABEL`. That keeps the original intent — your eye is still pulled to the
+   * repo that wants you — without the map going blank to get it.
+   */
   _updateLabels(dt) {
     const show = this.uiVisible && this.settings.get('showLabels')
     for (const plot of this.plotOrder) {
       const label = plot.label
       if (!label) continue
-      const wanted = show && (this.activePlots.has(plot.id) || this.hoveredPlot === plot) ? 1 : 0
+      const lit = this.activePlots.has(plot.id) || this.hoveredPlot === plot
+      const wanted = show ? (lit ? 1 : QUIET_LABEL) : 0
       const next = THREE.MathUtils.damp(label.material.opacity, wanted, 9, dt)
       label.material.opacity = next
       label.visible = next > 0.01

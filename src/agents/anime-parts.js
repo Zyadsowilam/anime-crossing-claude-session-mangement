@@ -353,7 +353,16 @@ const HAIR_BUILDERS = {
 
   /** Very long and wild — the late-arc power-up silhouette. */
   wild() {
-    const parts = [cap(1.02, -R * 0.5), ...fringe(5, 0.28, 1.6)]
+    /**
+     * The solid part of the hair stops above the eyes; the fringe covers the rest.
+     *
+     * At a floor of -R*0.5 the dome itself came down to the eye line, and a dome is smooth —
+     * so the front of the head was one unbroken shell of hair colour with the eyes painted on
+     * top of it. It read as a helmet, or as a mask, which is exactly what it is not meant to
+     * be. Stopping the shell on the forehead hands the job to `fringe`, which has strands and
+     * gaps and parts in the middle, and is the thing that actually looks like hair.
+     */
+    const parts = [cap(1.02, -R * 0.14), ...fringe(5, 0.28, 1.6)]
     const spikes = 13
     for (let i = 0; i < spikes; i++) {
       // Behind the temples only. Swept the full way round, the front spikes hang down over

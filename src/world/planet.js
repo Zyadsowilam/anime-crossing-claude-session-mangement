@@ -255,6 +255,7 @@ export function createTerrain(planet, detail, seed = 1337) {
 
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true,
+    map: groundDetail(),
     roughness: 0.97,
     metalness: 0,
     // Flat-ish shading keeps the low-poly read; a dielectric surface with no spec highlight
@@ -268,6 +269,74 @@ export function createTerrain(planet, detail, seed = 1337) {
   // Sampler so anything placed later can sit exactly on the surface.
   mesh.userData.heightAt = (x, z) => sampleHeight(x, z, noise, craters, planet)
   return mesh
+}
+
+/**
+ * The ground's own grain.
+ *
+ * The terrain carried no texture at all — just a colour per vertex — and that was survivable
+ * while the whole colony was something you looked *down* on. On foot it is the single worst
+ * surface in the world: the mesh is a couple of hundred segments across thirteen hundred
+ * units, so one triangle is about seven metres, and standing on it means a flat-shaded polygon
+ * filling the entire screen with one unbroken colour. No amount of lighting rescues that,
+ * because there is nothing there for the light to fall on.
+ *
+ * A tiled detail map fixes it for one texture and no geometry. Two things are happening in it:
+ * a fine per-pixel grain, which is seamless by construction because random noise has no edges
+ * to match, and a slower ripple built from sines at *integer* frequencies, which tiles exactly
+ * because whole numbers of cycles land back where they started. Together they give the ground
+ * something to read at a stride's distance without inventing detail that is not there.
+ *
+ * Greyscale, because it multiplies whatever colour the vertex already had — so every world
+ * keeps its own palette and gets the same grain. Centred a little under white, which costs a
+ * few percent of brightness and is what leaves room for the light patches to be lighter.
+ */
+let _groundDetail = null
+
+function groundDetail(size = 256) {
+  if (_groundDetail) return _groundDetail
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  const img = ctx.createImageData(size, size)
+  const d = img.data
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = (x / size) * Math.PI * 2
+      const v = (y / size) * Math.PI * 2
+      // Integer frequencies only — anything else leaves a visible seam at the tile edge.
+      let n = Math.sin(u * 2 + Math.sin(v * 3)) * 0.5
+      n += Math.sin(v * 2 + Math.cos(u * 5)) * 0.34
+      n += Math.sin(u * 7 + v * 5) * 0.16
+      const grain = (Math.random() - 0.5) * 0.5
+      // Amplitudes are deliberately generous. The first pass at this was half as strong and
+      // measurably present but invisible — a detail map you have to be told about is doing
+      // nothing for the person looking at the screen.
+      const t = 0.86 + n * 0.11 + grain * 0.13
+      const val = Math.max(0, Math.min(255, Math.round(255 * t)))
+      const i = (y * size + x) * 4
+      d[i] = val
+      d[i + 1] = val
+      d[i + 2] = val
+      d[i + 3] = 255
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.wrapS = THREE.RepeatWrapping
+  tex.wrapT = THREE.RepeatWrapping
+  // The plane's UVs run 0..1 across the whole world, so this is "one tile per five units".
+  const tiles = GROUND_SIZE / 5
+  tex.repeat.set(tiles, tiles)
+  tex.colorSpace = THREE.SRGBColorSpace
+  // The ground is almost always seen at a grazing angle, which is exactly the case that turns
+  // an un-filtered tiling texture into moire and then into mud.
+  tex.anisotropy = 8
+  tex.needsUpdate = true
+  _groundDetail = tex
+  return tex
 }
 
 function sampleHeight(x, z, noise, craters, planet) {

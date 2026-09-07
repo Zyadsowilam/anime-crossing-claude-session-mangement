@@ -1156,6 +1156,15 @@ body {
 .help .sheet {
   width: min(560px, calc(100vw - 40px));
   padding: 22px 24px;
+  /*
+   * The sheet is centred in a grid, so anything taller than the window overflows *both* ends
+   * and the bottom half is simply unreachable — which is what happened to the key list on a
+   * laptop screen: the table ran past the fold with no way to scroll to it. Cap it against
+   * the viewport and let the sheet itself scroll.
+   */
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .help h2 {

@@ -362,10 +362,21 @@ export class Engine {
     if (fps <= 0) return
     const ceiling = this._targetScale()
     const current = this.viewport?.scale ?? ceiling
-    // The floor is half the display's own resolution, not half a CSS pixel: on a retina
-    // panel the old absolute 0.5 was a quarter-resolution buffer, which reads as broken
-    // rather than as a machine having a hard time.
-    const floor = 0.35 * (window.devicePixelRatio || 1)
+    /**
+     * How soft the picture is ever allowed to get.
+     *
+     * Raised from 0.35, which was chasing the wrong thing. The governor's job is to keep the
+     * frame moving, and at a third of native resolution it certainly does — but a third of
+     * native is *visibly broken*: edges stair-step, the characters lose their faces, and the
+     * ground turns to mush. That is the failure people actually report, and they report it as
+     * "the render is bad" rather than as "the frame rate is low", because a soft picture is
+     * something you can see in a still and a low frame rate is not.
+     *
+     * Two thirds is about where the softness stops being the first thing you notice. Below
+     * this the honest answer is a lighter preset, not a blurrier one — the settings panel is
+     * right there and it says what each preset costs.
+     */
+    const floor = 0.62 * (window.devicePixelRatio || 1)
 
     // Sustained evidence, not one sample: 3 slow seconds to drop, 8 fast ones to climb.
     this._slow = fps < 45 ? (this._slow || 0) + 1 : 0

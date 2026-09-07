@@ -53,6 +53,27 @@ account, and the only thing it ever writes back is a single archive flag.
 > Characters are original designs in an anime *style*. Nothing here reproduces a character
 > from any particular show.
 
+<details>
+<summary><strong>Contents</strong></summary>
+
+- [Run it](#run-it) · [Controls](#controls)
+- [Which harnesses work](#which-harnesses-work)
+- [What you are looking at](#what-you-are-looking-at)
+- [Getting about](#getting-about) — how the crew walks and paths
+- [Clicking one](#clicking-one) — opening and archiving threads
+- [Getting around](#getting-around) — the map camera
+- [Keys](#keys)
+- [Worlds and light](#worlds-and-light)
+- [Where the art comes from](#where-the-art-comes-from)
+- [Animating the crew](#animating-the-crew)
+- [Performance](#performance)
+- [The faces](#the-faces)
+- [Keeping it local](#keeping-it-local)
+- [Building your own](#building-your-own)
+- [Who made this](#who-made-this) · [Licence](#licence)
+
+</details>
+
 ## Run it
 
 ```bash
@@ -79,7 +100,11 @@ second process.
 | `M` | Mute the sound |
 | `G` | Change world — six of them, each with its own architecture and weather |
 | `?` | Everything else |
- For a built version, `npm start` (build + serve) or `npm run serve` if
+
+<img src="docs/screenshots/first-person.png" width="100%" alt="First-person view down a lantern-lit street, a repo's name label glowing on a lamp post ahead">
+<sub align="center"><code>V</code> drops you into first person — the same street, the same crew, from eye height.</sub>
+
+For a built version, `npm start` (build + serve) or `npm run serve` if
 `dist/` already exists. Binds to `127.0.0.1` by default, and answers only its own page — see
 [Keeping it local](#keeping-it-local).
 
@@ -109,7 +134,7 @@ somebody writing that adapter.
 | [Amazon Q Developer CLI](https://aws.amazon.com/q/developer/) | ⬜ Not yet |
 
 Every harness that is installed shows up at once — the colony is the union of all of them, and
-an astronaut carries the name of the harness it belongs to.
+a character carries the name of the harness it belongs to.
 
 ### Adding one
 
@@ -128,15 +153,15 @@ than have you work around it.
 
 | In the world | In your threads |
 | --- | --- |
-| One town | One repo. Bigger repos claim more tiles — one per seven threads, grown as a contiguous blob from the middle outward. A zone stays where it is: see below |
+| One city | One repo. Bigger repos claim more districts — one per sixteen threads, grown as a contiguous blob from the middle outward. A zone stays where it is: see below |
 | One character + one building | One session |
 | Which genre a character is | A hash of that session's id, so it never changes |
 | The spirit orb at their shoulder | What that thread is doing right now |
 | The badge over their head | That thread wants a reply from you |
 | How finished a building looks | How large its transcript is, on a log scale |
 | Scaffolding | Somebody is at that site right now |
-| Walking out of the ship | A thread that just appeared |
-| Walking back into the ship | You archived it |
+| Walking out from under the gate | A thread that just appeared |
+| Walking back through the gate | You archived it |
 
 Status is carried by the orb and the badge, never by the character itself — the outfit says
 *which chat* this is, and repainting it by status would throw that away.
@@ -163,8 +188,8 @@ itself out. A zone you were watching could jump to the far side of the map becau
 
 ### The deck has to clear the ground
 
-Inside the colony the terrain is gentle but not flat — it runs from about -0.3 to +0.24 on
-the Moon, and half again as far on Mars. A deck's top face has to sit above the roughest
+Inside the colony the terrain is gentle but not flat, and it rolls further now that the
+lattice spans real distance between cities. A deck's top face has to sit above the roughest
 ground any plot can be dealt, or the ground comes through it: the slab reads as sunken, props
 standing on it are buried to the waist, and every surface where the two meet tears. So the
 slab is 0.45 tall, and everything on a plot — buildings, kerbs, clutter, boots — is measured
@@ -176,20 +201,20 @@ Boulders and trees would end up under decks laid on top of them afterwards, poki
 fragments. The scatter is therefore rebuilt whenever a zone's footprint changes — cheap,
 because it no longer drags the terrain mesh along with it.
 
-Astronaut behaviour is a **strict precedence** rather than a set of independent flags, so a
+Character behaviour is a **strict precedence** rather than a set of independent flags, so a
 thread can only ever be doing one thing. First match wins:
 
-| Signal | What the astronaut does | Badge |
+| Signal | What the character does | Badge |
 | --- | --- | --- |
-| Errored | Slumps, red eyes, fault light stutters | `!` |
-| Running now | Hammers away at its building, sparks fly | `⚒` |
-| PR merged | Jumps, confetti, heart eyes | `✓` |
+| Errored | Slumps, aura flickers red | `!` |
+| Running now | Works at its site, the spirit orb sparks | `⚒` |
+| PR merged | Jumps, cheers | `✓` |
 | Unread | **Stops and waits on you** | `?` |
-| Nothing for 3 days | Sits down and sleeps, `z` bubbles | — |
+| Nothing for 3 days | Sits down, `z` bubbles | — |
 | Anything else | Potters around its plot | — |
 
 Only the states that want something from you get a badge. With most of a real thread list
-sitting quiet, a symbol over every astronaut buries the one `?` that actually matters.
+sitting quiet, a symbol over every character buries the one `?` that actually matters.
 
 Zone names follow the same rule: a plot shows its name only while somebody there is working,
 waiting or stuck. Everything else is nameless until you point at it. The plate itself is just
@@ -197,37 +222,40 @@ text over a soft halo with a small accent dot — no panel, no outline.
 
 ## Getting about
 
-Astronauts route rather than drift. Buildings and the landing pad are rasterised into a
-navigation grid whenever the roster changes, and the crew walks it with A*, string-pulled
-afterwards so they take the corners they actually need instead of a visible staircase.
+Characters route rather than drift. Every building, back-street terrace and piece of
+clutter on a deck is rasterised into a navigation grid whenever the roster changes, and the
+crew walks it with A*, string-pulled afterwards so they take the corners they actually need
+instead of a visible staircase — over a grid that now covers real cities and the roads
+between them, not one small platform.
 
 Two guarantees, deliberately independent:
 
-- **Routing** finds a way *around* a building, including threading the gaps between a ring of
-  them. Blocking radii are the building's bounding radius trimmed a little plus the
-  astronaut's own width — the trim is what keeps those gaps walkable.
+- **Routing** finds a way *around* a building, including threading the gaps between a row of
+  them. Blocking radii are each building's footprint trimmed a little plus the character's
+  own width — the trim is what keeps a street's gaps walkable.
 - **Collision** is applied to every step whether or not a path is being followed. Routing can
   fail — a site walled in between polls, a path budget that has not caught up — and walking
-  through a wall must not be what happens when it does. Blocked head-on, an astronaut slides
+  through a wall must not be what happens when it does. Blocked head-on, a character slides
   along the obstacle instead of stopping dead.
 
-Measured over the live colony: 288 path legs, **0 crossing a building**, and **0 penetrations
-across 78,000 agent-frames**. A typical path costs 6 µs (most are a clear straight shot and
-skip the search); the worst frame when a poll invalidates every route at once is 0.6 ms.
+A new character no longer spawns at the world's gate and walks the length of the colony to
+reach its own city — at city scale that walk could take longer than the crowd's own patience
+for finding somewhere to stand, and used to end with everyone giving up in the same empty
+field. It now appears a short way down its own street and settles from there, and how long an
+arrival is allowed to take is worked out from the distance it actually has to cover rather
+than one flat timeout for every walk in the colony.
 
-They also push each other apart, so a busy plot is a crowd rather than a pile. That spacing
-is measured against the widest thing an astronaut wears — the helmet, at 0.95 units — because
-holding a crowd at less than that is a crowd standing *inside* itself, which is what the first
-version did at 0.72. Arrival is derived from the same number and is deliberately larger: an
-astronaut that had to get closer than its neighbours would let it could never finish arriving,
-and would shoulder at the crowd for as long as its thread existed.
+They also push each other apart, so a busy street is a crowd rather than a pile — spaced
+against the widest thing a character wears, so a crowd never reads as standing inside itself.
+Arrival distance is deliberately a little larger again: a character that had to get closer
+than its neighbours would let it could never finish arriving, and would shoulder at the crowd
+for as long as its thread existed.
 
-Standing spots are placed clear of the building's own blocked radius rather than at a fixed
+Standing spots are placed clear of a building's own blocked radius rather than at a fixed
 distance from it, and checked against the navigation grid — a spot inside a wall is a spot the
-crew can never reach, and the astronaut sent to it walks at that wall forever. Measured over
-the live colony: **68 of 68 astronauts settled, nobody closer than 1.14 units, no standing spot
-left inside an obstacle.** As a last resort an astronaut that has been blocked for six seconds
-adopts the ground it got to instead of pushing on.
+crew can never reach, and the character sent to it walks at that wall forever. As a last
+resort a character that has been blocked for several seconds adopts the ground it got to
+instead of pushing on.
 
 ## Clicking one
 
@@ -235,8 +263,11 @@ All of the chrome is one panel on the right — the name, the counts, and every 
 is no top bar and no strip along the bottom: a colony is a place, and a place reads better
 without a frame around it.
 
-An astronaut, a zone's deck, the name plate over it, or a repo in that list — all four drill
+A character, a zone's deck, the name plate over it, or a repo in that list — all four drill
 into the same repo. Picking somebody is also picking the zone they are standing on.
+
+<img src="docs/screenshots/thread-card.png" width="100%" alt="A thread card open beside its character: title, status, character name, model, last activity, and Open/Archive buttons">
+<sub align="center">The actual card, parked beside the actual character it belongs to — status, model, last activity, <strong>Open</strong> and <strong>Archive</strong>.</sub>
 
 **The repo**, at the top, whether or not anybody is selected:
 
@@ -246,20 +277,19 @@ into the same repo. Picking somebody is also picking the zone they are standing 
   nothing is resumed and nothing is written.
 - **Finder** (Explorer on Windows) opens the folder, **Copy path** copies it.
 - Underneath, everything running in that repo, whoever wants something first. Clicking one
-  flies to its astronaut and selects it.
+  walks or flies to its character and selects it.
 
-**The thread**, when an astronaut is selected, in a card parked **beside that astronaut**
+**The thread**, when a character is selected, in a card parked **beside that character**
 rather than in the panel: its face, title, worktree, branch, model, last activity, and how
 far along its building is. The answer to "what is this one doing" belongs next to the thing
-you clicked, so the card follows its astronaut around the screen — preferring its right,
+you clicked, so the card follows its character around the screen — preferring its right,
 flipping to its left rather than sliding under the sidebar, and never leaving the window.
 It is moved with a transform rather than with `left`/`top`, the one geometric change a
-browser makes without touching layout, so following a walking astronaut costs nothing.
+browser makes without touching layout, so following a walking character costs nothing.
 
 - **Open** hands the thread back to Claude Code and the desktop app comes forward.
 - **Archive** sets `isArchived` on Claude Code's own session record — the thread lands in
-  Claude Code's Archived list, not just here — and the astronaut walks back up the ramp and
-  boards the ship.
+  Claude Code's Archived list, not just here — and the character walks back through the gate.
 
 Only one button in the panel is ever the accent colour: whichever action is the immediate
 one. `Esc` steps outward a notch at a time — the thread first, then its zone.
@@ -322,56 +352,49 @@ under **View → Return to isometric**.
 
 | Key | Does |
 | --- | --- |
-| `H` / `⌘\` | **Hide every panel.** The colony still reads: status lives above the astronauts' heads |
+| `H` / `⌘\` | **Hide every panel.** The colony still reads: status lives above the crew's heads |
 | `S` | Settings |
-| `N` | Fly to the next astronaut waiting on you |
+| `N` | Fly to the next character waiting on you |
 | `Enter` / `A` | Open / archive the selected thread |
 | `C` | New conversation in the open zone's folder |
-| `O` | Orbit mode |
-| `Tab` | Next planet |
+| `O` | Orbit mode (map view) |
 | `L` | Next time of day |
 | `P` | Screenshot |
 | `0` | Reset the view |
 | `Esc` | Deselect, and close the zone sidebar |
 | `?` | Help |
 
-## Planets and light
+## Worlds and light
 
-Three worlds — **Luna**, **Mars**, **Terra** — and a full day/night cycle you can scrub or
-let run. A planet is a bag of colours and two switches; terrain, scatter, sky and lighting all
-read from the same preset, so a fourth world is a data change rather than a code change.
+Six worlds — **Hanami Hills**, **Neo-Akihabara**, **The Spirit Realm**, **Summer Festival**,
+**Skyward Isles**, **The Winter Arc** — each with its own architecture, weather and palette,
+and a full day/night cycle you can scrub or let run. A world is a bag of colours, a weather
+recipe and two switches; terrain, scatter, sky and lighting all read from the same preset, so
+a seventh world is a data change rather than a code change.
 
-### The sky is the HDRI
+<details>
+<summary><strong>How the light actually works</strong></summary>
 
-Rather than shipping an HDR environment map, the sky shader **is** the environment map. A
-second copy of the sky dome — sharing the same uniforms, so it is always the sky you are
-actually standing under — is rendered into a prefiltered radiance map with `PMREMGenerator`
-and bound as `scene.environment`. That is what gives metal something to reflect and
-dielectrics a directional ambient, and it is why the colony changes *character* through the
-day rather than just changing brightness: at dusk on Mars the panels pick up the sky, on the
-Moon they stay hard and neutral.
+**The sky is the HDRI.** Rather than shipping an HDR environment map, the sky shader **is**
+the environment map. A second copy of the sky dome — sharing the same uniforms, so it is
+always the sky you are actually standing under — is rendered into a prefiltered radiance map
+with `PMREMGenerator` and bound as `scene.environment`. That is what gives metal something to
+reflect and dielectrics a directional ambient, and it is why the colony changes *character*
+through the day rather than just changing brightness: at dusk over the festival stalls the
+paper and timber pick up the sky's colour, in the spirit realm's teal dusk they stay cool and
+desaturated. It regenerates only when the sky has actually moved, and never more than a few
+times a second — measured cost **0.16 ms/frame**, off on Potato and Low.
 
-It regenerates only when the sky has actually moved, and never more than a few times a second.
-Measured cost: **0.16 ms/frame**. Off on Potato and Low; the intensity is a slider.
+**The sun is not overhead.** The solar arc is tilted, so noon puts the sun 54° above the
+horizon and off to one side rather than at the zenith. That is load-bearing rather than
+decorative: a sun directly overhead puts `N·L` at zero on every vertical wall in the colony,
+and they go black with only ambient to catch.
 
-Materials are properly PBR underneath it. Roughness and metalness are looked up per atlas
-cell, so a single merged building geometry holds painted panel, brushed metal and
-photovoltaic glass and each behaves correctly — the ten building recipes never had to learn
-about PBR.
+**HDR and bloom.** Eye colours, lamps, windows and kerbs are all authored above 1.0 so the
+bloom pass picks them out. The threshold is deliberately high (0.92) — only those things clear
+it, so lit surfaces stay crisp instead of going hazy.
 
-### The sun is not overhead
-
-The solar arc is tilted, so noon puts the sun 54° above the horizon and off to one side rather
-than at the zenith. That is load-bearing rather than decorative: a sun directly overhead puts
-`N·L` at zero on every vertical wall in the colony, and they go black with only ambient to
-catch. The old procedural buildings were curved enough to hide it; a kit of flat-walled
-modules is not.
-
-### HDR and bloom
-
-Eye colours, lamps, windows, crop rows and plot kerbs are all authored above 1.0 so the bloom
-pass picks them out. The threshold is deliberately high (0.92) — only those things clear it,
-so lit surfaces stay crisp instead of going hazy.
+</details>
 
 ## Where the art comes from
 
@@ -380,18 +403,17 @@ plus the project's own shaders on top of them.
 
 | Pack | Used for | Licence |
 | --- | --- | --- |
-| [KayKit : Space Base Bits](https://kaylousberg.itch.io/space-base-bits) | Every building, the landing pads, rovers, and the crates and drums stacked around each plot | CC0 |
-| [KayKit : Character Animations](https://kaylousberg.itch.io/kaykit-character-animations) | The crew's body and all fifteen animation clips they play | CC0 |
-| [KayKit : Forest Nature Pack](https://kaylousberg.itch.io/kaykit-forest) | Terra's trees, bushes and grass, and the boulders on every world | CC0 |
+| [KayKit : Space Base Bits](https://kaylousberg.itch.io/space-base-bits) | Structural pieces built into the procedural buildings (turbines among them), plus the crates and drums stacked around each plot | CC0 |
+| [KayKit : Character Animations](https://kaylousberg.itch.io/kaykit-character-animations) | The crew's body — `Mannequin_Medium` — and all fifteen animation clips they play; the anime hair, props and faces are this fork's own, built on top of it | CC0 |
+| [KayKit : Forest Nature Pack](https://kaylousberg.itch.io/kaykit-forest) | The trees, bushes and grass ringing every city, and the boulders scattered across every world | CC0 |
 
 CC0 asks for nothing, but crediting Kay costs nothing either. If you rebuild the assets, both
 packs go in `assets-src/` (see below).
 
-Two things about Space Base Bits make the whole approach work. It is **modular** — a habitat is
-a base module with a roof module on it, a workshop is the garage variant with a rover parked
-outside — which is why ten building recipes fit on one screen. And all forty-four models share
-**one 1024px gradient atlas**, so a nine-part greenhouse still merges to a single geometry and a
-single draw call, exactly as the procedural generators it replaced did.
+What made Space Base Bits worth building on in the first place: it is **modular**, and all
+forty-four models share **one 1024px gradient atlas** — which is why a building assembled
+from several of its pieces still merges to a single geometry and a single draw call, exactly
+as this fork's own Japanese-village generator does for the buildings it draws from scratch.
 
 That atlas is an 8×4 grid of swatches, which turns out to be a useful thing to have. A *cell
 index* is a stable name for a material, so the building shader can:
@@ -404,80 +426,66 @@ index* is a stable name for a material, so the building shader can:
   grey structural swatch behaves like painted metal and the photovoltaic swatch like glass.
 
 The Forest pack does double duty. Its boulders are painted neutral grey, which means a
-per-instance tint takes exactly the same rock to lunar dust or Martian rust without touching
-the atlas — so one scatter recipe dresses a meadow and a crater field. Only sixteen of its 105
-models are packed: variety comes from per-instance scale and rotation, and packing every size
-and colour variant would be five times the file for no more to look at.
+per-instance tint takes the same rock to a cherry-blossom hillside or a snowbound one without
+touching the atlas — so one scatter recipe dresses every world. Only sixteen of its 105 models
+are packed: variety comes from per-instance scale and rotation, and packing every size and
+colour variant would be five times the file for no more to look at.
 
-### The surfaces are drawn, not shipped
+<details>
+<summary><strong>The surfaces are drawn, not shipped — and how to rebuild the packed assets</strong></summary>
 
 The plot decks and their kerbs can't be textures from a pack, because they have to take each
 repo's accent colour and a painted texture cannot. `world/surfaces.js` draws them to a canvas
-at boot instead — a plated metal floor of bolted panels, and a kerb broken into dashes that
-reads as runway edge lighting rather than a glowing bar. Both are authored neutral grey so the
-material's colour multiplies through cleanly, and both come with a **normal map derived from
-their own height field** by Sobel. That relief is doing most of the work: on a surface this
-large and this flat, a flat albedo pattern under one directional light reads as wallpaper,
-where a seam that catches a shadow along one edge and a highlight along the other reads as
-metal.
+at boot instead — a plated metal floor of bolted panels, and a kerb broken into dashes. Both
+are authored neutral grey so the material's colour multiplies through cleanly, and both come
+with a **normal map derived from their own height field** by Sobel — a flat albedo pattern
+under one directional light reads as wallpaper, where a seam that catches a shadow along one
+edge and a highlight along the other reads as metal.
 
-Both surfaces needed their UVs rebuilt, and both for the same underlying reason: a generated
-primitive's unwrap is made for the primitive, not for what you draw on it.
+Both surfaces needed their UVs rebuilt: a generated primitive's unwrap is made for the
+primitive, not for what you draw on it. A hex tile is a six-sided cylinder, and a cylinder's
+cap UVs are a *disc* — which turns a tiling plate pattern into a medallion, one per tile — so
+the deck's top is reprojected from world XZ instead, and its rim keeps the cylinder's own side
+unwrap, the one thing that avoids both a degenerate tangent and a seam. A kerb bar is a box,
+and a box hands all six faces the same 0..1 square, so only the upper face points at the dash
+strip now; the rest point at flat colour.
 
-A hex tile is a six-sided cylinder, and a cylinder's cap UVs are a *disc* — which turns a tiling
-plate pattern into a medallion, one per tile. The deck's **top** is therefore reprojected from
-world XZ, so the seams run straight across a whole plot and seven cells read as one apron. Its
-**rim** keeps the cylinder's own side unwrap, which is the one thing that works: a fixed
-horizontal axis like `x + z` is *constant* along two of every six sides, leaving those faces
-with no UV gradient, a degenerate tangent and — since three builds the normal-mapped shading
-frame out of that — solid black; and arc length from `atan2` fixes the gradient but adds a seam
-where the wrap crushes a dozen repeats into one panel. The generated unwrap has neither problem,
-because it duplicates the vertices at the seam.
-
-A kerb bar is a box, and a box hands all six faces the same 0..1 square, so the dash strip was
-stretched down the sides and across the ends as well — which on a bar 14cm tall squashed the
-dark gaps between dashes into what read as a solid black edge, worst where six of them gather at
-a plot corner. Only the upper face points at the strip now; the rest point at a patch of flat
-colour on the same texture.
-
-### Rebuilding them
-
-`npm run assets` packs the raw packs into the two glbs the app loads. The built files are
-checked in and the raw packs are not, so this is a no-op unless you have fetched them:
+**Rebuilding the packed assets.** `npm run assets` packs the raw KayKit packs into the glbs
+the app actually loads. The built files are checked in and the raw packs are not, so this is a
+no-op unless you fetch them:
 
 ```bash
 mkdir -p assets-src && cd assets-src
-# download the FREE tier of both packs from the links above, then unzip in place
+# download the FREE tier of both packs (linked above), then unzip in place
 ```
 
-`npm run assets` runs `tools/build-assets.mjs`, which drives `build-kit.mjs` once per model
-pack — merging a directory of single-model `.gltf` files into one document with one material
-and one texture — and then `build-crew.mjs`. That last one keeps the fifteen clips the colony actually plays out of
-KayKit's 161 and — the part that matters — **retargets every animation channel onto the
-mannequin's own bones**. Merging glTF documents brings each animation file's private copy of the
-rig along with it, so without that step the finished file has five skeletons named `hips` and
-the clips drive the four nobody is looking at. It loads without a single warning and renders the
-entire crew frozen in its bind pose.
+It runs `tools/build-assets.mjs`, which merges each pack's single-model `.gltf` files into one
+document with one material and one texture, then **retargets every animation channel onto the
+mannequin's own bones** — merging glTF documents brings each animation file's private copy of
+the rig along with it, so without that step the finished file has five skeletons and the crew
+renders frozen in its bind pose.
+
+</details>
 
 ## Animating the crew
 
-The bodies are hand-animated clips, and hand-animated clips are not instanceable: three skins a
-`SkinnedMesh` from a `Skeleton` object, one per character, which for three hundred threads means
-three hundred draw calls and three hundred skeletons stepped on the CPU every frame.
+The bodies are hand-animated clips, and hand-animated clips are not instanceable: three.js
+skins a `SkinnedMesh` from a `Skeleton` object, one per character, which for a colony of
+threads means one draw call and one skeleton evaluation per character, stepped on the CPU
+every frame — the thing the bake below exists to avoid.
 
-So the animation is **baked once, at load, into a bone-matrix texture**. Every clip is sampled at
-30 fps and each frame's twenty-one skinning matrices are written into a float texture — 84×723
-texels for the whole set. One `InstancedMesh` then carries the entire crew, and each astronaut
-reads its own row of that texture from a single per-instance float: the frame it is on. Skinning
-happens in the vertex shader, upstream of three's own instancing, so the skinned vertex still
-goes through `instanceMatrix` and the crew stays one draw whether there are six of them or six
-hundred.
+So the animation is **baked once, at load, into a bone-matrix texture**. Every clip is sampled
+at a fixed rate and each frame's skinning matrices are written into a float texture. One
+`InstancedMesh` then carries the entire crew, and each character reads its own row of that
+texture from a single per-instance float: the frame it is on. Skinning happens in the vertex
+shader, upstream of three's own instancing, so the skinned vertex still goes through
+`instanceMatrix` and the crew stays one draw whether there are a dozen of them or a hundred.
 
-Everything the crew *wears* stays procedural and stays the colony's own: helmet, visor,
-screen-face, backpack, antenna and lamp. Those are pinned to bones the cheap way — the bake also
-writes the head and chest world transforms into a small array on the CPU, so placing a helmet is
-one matrix read rather than a skeleton evaluation, and a helmet can never be a frame out of step
-with the head under it.
+Everything the crew *wears* is this fork's own and stays procedural: hair, a genre prop, the
+face mask and the spirit orb at the shoulder that carries status. Those are pinned to bones the
+cheap way — the bake also writes each bone's world transform into a small array on the CPU, so
+placing a headful of hair is one matrix read rather than a skeleton evaluation, and it can
+never be a frame out of step with the head under it.
 
 Behaviour maps onto clips directly, and locomotion wins over status — an idler pottering across
 its plot walks rather than hammering while it slides:
@@ -491,7 +499,7 @@ its plot walks rather than hammering while it slides:
 | Nothing for three days | `Sit_Floor_Down` → `Sit_Floor_Idle`, and then it holds still |
 | Anything else | `Idle_A`, or `Walking_A` / `Running_A` while moving |
 
-The clip is chosen from the distance an astronaut **actually covered** last frame, not from
+The clip is chosen from the distance a character **actually covered** last frame, not from
 the velocity it meant to have. The two come apart the moment something is in the way:
 collision refuses the step while velocity stays high, and an agent driven off intent alone
 walks on the spot against a wall. The measure rises instantly and falls over a tenth of a
@@ -500,27 +508,26 @@ standing pose, while a stride still gets to finish instead of freezing mid-step.
 
 Movement is shaped to match. A wander leg is walked at a decisive pace and stops dead on
 arrival rather than easing down through the speeds no standing clip can carry, and a leg that
-runs into the side of a building is abandoned at the first refused step. Measured across a
-live colony over a minute: **0.4% of agent-frames** disagree with what the body is doing, none
-of them by more than 0.12 m/s.
+runs into the side of a building is abandoned at the first refused step.
 
 Stride playback follows actual ground speed, so short steps cannot moonwalk. An *idler*
 potters around its plot; a *sleeper* does not — it sits where it sat, and the only thing that
 can move it is being pushed out of someone it is overlapping, which converges and stops. The
-alternative is a cross-legged astronaut sliding across the deck, standing up to walk two
+alternative is a cross-legged character sliding across the deck, standing up to walk two
 metres, and sitting down again every few seconds.
 
 Clips that do not loop are baked a millisecond short of their own duration. Sampled at exactly
 `duration` the mixer's default loop mode wraps to the start, so the frame a sit-down or a spawn
-*holds* would be the pose it began from — and the astronaut snaps upright on the last frame of
+*holds* would be the pose it began from — and the character snaps upright on the last frame of
 sitting down.
 
-The crew also stands on the ground rather than on `y = 0`. A plot's tiles are a raised slab
-and the terrain between plots rolls half a metre either way, so a fixed height buries them for
-a good part of the colony. `Colony.groundAt()` answers with the deck height when a point is
-over an allocated hex cell — an exact axial lookup, not a nearest-centre radius test — and the
-terrain field otherwise. It is sampled only when an astronaut has actually moved, and eased
-into, so walking up onto a deck reads as a step rather than a teleport.
+The crew also stands on the ground rather than on `y = 0`. A city's tiles are a raised deck,
+and the terrain rolls between cities now that real distance separates them, so a fixed height
+buries the crew for a good part of the colony. `Colony.groundAt()` answers with the deck
+height when a point falls inside a city's own hexagon — not merely inside the lattice cell
+it is dealt, now that a cell is wider than the city standing on it — and the terrain field
+otherwise. It is sampled only when a character has actually moved, and eased into, so walking
+up onto a deck reads as a step rather than a teleport.
 
 ## Performance
 
@@ -547,15 +554,20 @@ The knobs that actually matter, and why:
 What keeps it cheap at rest:
 
 - The crew's animated bodies are a single instanced, GPU-skinned draw, and each worn part —
-  helmet, visor, face, pack, antenna, lamp — is one `InstancedMesh` across the whole crew. The
-  sixty-fifth astronaut costs a matrix write and one float, not a draw call. Per-agent suit
-  colour, eye colour and facial expression ride along as instanced attributes.
-  Measured on a live colony: **66 astronauts and 66 buildings in 105 draw calls**.
+  hair, prop, face, orb — is one `InstancedMesh` across the whole crew. The next character
+  costs a matrix write and one float, not a draw call. Per-agent outfit colour, eye colour and
+  facial expression ride along as instanced attributes.
+- Every district past a distance threshold drops to a **skyline tier** — one box and one
+  pitched roof per building, rendered in place of the real thing — so a city you are not
+  standing in costs a twentieth of its full-detail triangle count. Ground scatter and the
+  back-street terraces around each avenue skip the shadow pass entirely; they still receive
+  shadows from what actually matters, they just do not cast their own second copy of the
+  scene. Standing in a district with several neighbours in full detail still renders under a
+  million triangles in a few hundred draw calls.
 - Each building merges into a single geometry, and construction progress is a shader offset
   rather than a rebuild, so a building rises out of the ground without touching a vertex
   buffer. It sinks the structure and discards what falls below the deck rather than slicing
-  the top off, so a half-built one is a *whole* building partly buried — cutting instead
-  guts a kit of closed shells, and a two-thirds-finished biodome becomes an empty ring.
+  the top off, so a half-built one is a *whole* building partly buried.
 - Terrain is displaced and vertex-coloured once at build time; the GPU only ever sees static
   geometry.
 - Particles live in flat typed arrays and are swap-removed on death — no allocation during play.
@@ -570,52 +582,63 @@ tightest zoom on a retina panel there is still about one texel per device pixel,
 plus anisotropy carry the far end where a plate is sixty pixels tall and would otherwise
 crawl. Everything in both is drawn from paths, so the only cost of more texels is memory.
 
-## The faces
+<details>
+<summary><strong>The faces</strong></summary>
 
-Each visor is a little rounded screen — the patch is a rectangle in UV space, so its rounded
-silhouette is cut in the fragment shader with a rounded-box SDF, which gives soft corners a
-rectangular patch can never have and lets the white helmet show through where the screen ends. All sixteen expressions are drawn once into a single 4×4
-canvas atlas as a white-on-black **mask** — never as finished artwork — and the colour arrives
-per-astronaut at draw time, so one 512px texture gives every agent its own eye colour without
-a second byte of memory. The shader reads the mask out of the red channel, blends between the
-dark screen and that astronaut's glow, and adds scanlines and a vignette so it reads as a
-screen rather than a decal.
+A face is three masks in one atlas, not three textures: ink (the linework), iris (where the
+eyes go) and a soft highlight, each painted into its own colour channel of the same canvas so
+they composite in the fragment shader with one texture read. Painting them cleanly took care
+the obvious approach does not — a shape drawn straight into a channel bleeds into whichever
+layer is drawn after it, so every shape is stamped **twice**: once with `destination-out` to
+carve its silhouette out of every channel already painted, then again in its own channel. That
+is what keeps the sclera from surviving under the iris and showing through as a white halo.
+
+Colour arrives per-character at draw time — the same mask, a different iris tint — so one
+small atlas gives every character in the colony its own eye colour without a second byte of
+memory. A six-step toon gradient shades the rest of the head, which is what gives the cast its
+flat, cel-shaded look rather than a smoothly lit one.
 
 They blink on their own clocks, so a crowd never blinks in unison.
 
-## A note on which side gets drawn
+</details>
 
-The ship is procedural, and its bowls, engine bells and airlock collars are **open shells**.
-Two things bite there: single-sided rendering lets you look straight through them, and a
-one-sided bowl cannot shadow-map — from the sun its concave interior is a back face at exactly
-its own depth, so it self-shadows to solid black whichever cull mode the depth pass uses. So
-the ship draws double-sided with a `BackSide` shadow side.
+<details>
+<summary><strong>A note on which side gets drawn</strong></summary>
 
-The buildings want the exact opposite, and for the exact opposite reason. The model kit's
-pieces are **closed solids**, so there is nothing to see through — and being closed is why they
-must not be drawn double-sided. They are modelled as stacked boxes, which leaves a floor and
-the ceiling underneath it sharing a plane all over the kit: a landing pad and the lander
-standing on it put 38 up-facing and 17 down-facing triangles at one height, and a habitat has
-two such planes, a lab four. Drawn double-sided, both halves of every one of those pairs
-rasterise at identical depth and the winner is settled by floating-point noise — which is a
-whole colony of surfaces flickering as the camera moves. Back-face culling throws the downward
-half away before it can fight, so buildings render `FrontSide`.
+The gate is procedural, and its lantern housings are **open shells**. Two things bite there:
+single-sided rendering lets you look straight through them, and a one-sided housing cannot
+shadow-map — from the sun its concave interior is a back face at exactly its own depth, so it
+self-shadows to solid black whichever cull mode the depth pass uses. So the gate draws
+double-sided with a `BackSide` shadow side.
 
-Worth knowing if you add a kit: the tell is that *every* clash is an up/down pair. Not one is
-up/up, which is what makes culling a complete fix rather than a partial one.
+The buildings want the exact opposite, and for the exact opposite reason. They are **closed
+solids**, so there is nothing to see through — and being closed is why they must not be drawn
+double-sided. They are modelled as stacked storeys, which leaves a floor and the ceiling
+underneath it sharing a plane throughout: a two-storey house puts a pair of up-facing and
+down-facing triangles at exactly the same height, and a pagoda has several such planes.
+Drawn double-sided, both halves of every one of those pairs rasterise at identical depth and
+the winner is settled by floating-point noise. Back-face culling throws the downward half away
+before it can fight, so buildings render `FrontSide`.
 
-## Turning things
+Worth knowing if you add a kit: the tell is that *every* clash is an up/down pair, which is
+what makes culling a complete fix rather than a partial one.
+
+</details>
+
+<details>
+<summary><strong>Turning things</strong></summary>
 
 Turbine rotors spin in the **vertex shader**, not as child meshes, so a turbine is still one
 merged geometry and one draw call. Each spinning vertex carries the hub it turns about and how
 fast, which is what lets one building hold several of them, and one uniform write a frame turns
-every rotor in the colony. The tower is taken from the kit *solo* — without the sub-node the
-pack names separately — precisely so the rotor can be put back on as a part that moves.
+every rotor in the colony.
 
-Two things to watch if you add another: `BufferGeometry.scale()` transforms position and normal
-and nothing else, so an attribute that holds a *position* has to be scaled by hand or the blades
-orbit a hub left behind at the unscaled height. And the shadow pass needs the same rotation, or
-the blade's shadow lags the blade.
+Two things to watch if you add another: `BufferGeometry.scale()` transforms position and
+normal and nothing else, so an attribute that holds a *position* has to be scaled by hand or
+the blades orbit a hub left behind at the unscaled height. And the shadow pass needs the same
+rotation, or the blade's shadow lags the blade.
+
+</details>
 
 ## Keeping it local
 
@@ -667,7 +690,8 @@ What it touches on disk, in full:
 `data/colony.json` holds the names and paths of the repos you work in, so it is gitignored —
 worth knowing before you copy one into an issue.
 
-## Layout
+<details>
+<summary><strong>Repo layout, for contributors</strong></summary>
 
 ```
 server/
@@ -681,8 +705,8 @@ server/
   serve.mjs    static server for the built app
 src/
   core/        settings, renderer + post chain, the Google Earth camera
-  world/       planets, terrain, sky, hex plots, the model kit, buildings, the ship
-  agents/      the crew rig and its bake, instanced astronauts, faces, badges, particles
+  world/       worlds, terrain, sky, hex plots, the model kit, buildings, the gate
+  agents/      the crew rig and its bake, instanced characters, faces, badges, particles
   game/        threads → colony, and the API client
   ui/          the HUD
 tools/         asset packers — raw packs in, the three glbs the app loads out
@@ -696,6 +720,8 @@ against the thread shape and never against a harness.
 Colony state lives in `data/colony.json` — where each zone sits and what you archived.
 Deleting it only loses the archive list and the map's arrangement; the threads themselves are
 untouched, and the colony lays itself out again from scratch.
+
+</details>
 
 ## Building your own
 
@@ -720,27 +746,31 @@ not you build anything like this:
 
 ## Who made this
 
-Built by **[Jarren Rocks](https://jarren.rocks)**, mostly as a side effect of building
-**[Emra](https://emra.app)** — which is where most of the threads in the screenshots come from,
-and why a tool for keeping track of a lot of them at once existed in the first place.
+This fork exists because looking down on a space colony was never the point — walking through
+somewhere, and having your own conversations be the reason it exists, was. Built with
+[Claude Code](https://claude.com/claude-code) on top of the engine
+**[Jarren Rocks](https://jarren.rocks)** wrote for [Bot Crossing](https://github.com/jarrenrocks/bot-crossing):
+the harness adapters, the instanced crowd, the camera, the whole layout rule. See
+[CONCEPT.md](CONCEPT.md) for what changed and why.
 
 ## Licence
 
 [MIT](LICENSE) © Jarren Rocks. Do what you like with it — including forking it, which
 [CONTRIBUTING.md](CONTRIBUTING.md) explains is a first-class option rather than a last resort.
 
-The art is not mine. Three CC0 packs by **[Kay Lousberg](https://kaylousberg.com)** — [Space
+The art is not this project's own. Three CC0 packs by **[Kay Lousberg](https://kaylousberg.com)** — [Space
 Base Bits](https://kaylousberg.itch.io/space-base-bits), [Character
 Animations](https://kaylousberg.itch.io/kaykit-character-animations) and [Forest Nature
 Pack](https://kaylousberg.itch.io/kaykit-forest) — are built into the `.glb` files in
 `public/assets/` and are covered by [CC0](https://creativecommons.org/publicdomain/zero/1.0/),
 not by the MIT licence above. CC0 asks for nothing; crediting Kay costs nothing either.
 
-The status badges above each astronaut's head are
+The status badges above each character's head are
 [Material Design Icons](https://pictogrammers.com/library/mdi/), bundled via `@mdi/js` and
 licensed [Apache-2.0](https://github.com/Templarian/MaterialDesign/blob/master/LICENSE).
 
-Everything else you see — the shaders, the terrain, the sky, the ship, the crew's helmets and
-faces, the plot decks and their kerbs — is drawn by this project and is MIT along with the code.
+Everything else you see — the shaders, the terrain, the sky, the gate, the crew's hair and
+faces, the buildings and the streets between them — is drawn by this project and is MIT along
+with the code.
 
 Not affiliated with Anthropic, OpenAI, Google, or any of the other harness vendors listed above.

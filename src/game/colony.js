@@ -1181,6 +1181,15 @@ export class Colony {
     // Badges only appear once an astronaut has actually reached its post — a stream of
     // symbols bobbing over a walking crowd is noise.
     if (agent.state !== 'at-site') return BADGE.none
+    /**
+     * Talking beats whatever the thread is doing, for as long as it lasts.
+     *
+     * The two are never in conflict for anything urgent: only an idle character will strike
+     * up a conversation (see `AVAILABLE` in social.js), so nothing that is waiting on you or
+     * broken can have its badge hidden by one. What this displaces is the "idle" badge, and
+     * "these two are chatting" is strictly more information than "this one has nothing on".
+     */
+    if (agent.social?.kind === 'chat') return BADGE.chat
     return BADGE_FOR[agent.status] ?? BADGE.none
   }
 

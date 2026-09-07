@@ -293,3 +293,40 @@ function mulberry(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
+
+/**
+ * Give a flat-shaded surface something to look at, from nothing but its world position.
+ *
+ * The village had the same problem the terrain had: large blank panels of one colour. Up
+ * close a wall is most of the screen and there is nothing on it, so the whole town reads as
+ * untextured blocks however well the roofs and framing are modelled.
+ *
+ * A texture is the usual answer and it is not available here. The buildings are merged
+ * geometry assembled from a dozen primitives — their UVs are whatever each primitive happened
+ * to be born with, so any map applied across them lands at a different scale and orientation
+ * on every panel. What *is* consistent is where a surface sits in the world, so the grain is
+ * generated from that instead: a low-frequency wobble for patchiness, a higher one for tooth,
+ * both from sines, which are smooth, seamless everywhere by definition, and cost six
+ * instructions rather than a sampler.
+ *
+ * It fades out with distance. High-frequency detail past a few metres is not detail, it is
+ * aliasing — the sines start crossing more than once per pixel and the wall crawls.
+ */
+export function applyGrain(shader) {
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\n varying vec3 vGrainPos;')
+    .replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n vGrainPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;'
+    )
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', '#include <common>\n varying vec3 vGrainPos;')
+    .replace(
+      '#include <color_fragment>',
+      `#include <color_fragment>
+       float gCoarse = sin( vGrainPos.x * 7.3 ) * sin( vGrainPos.y * 9.1 ) * sin( vGrainPos.z * 7.7 );
+       float gFine = sin( vGrainPos.x * 23.0 + vGrainPos.z * 19.0 ) * sin( vGrainPos.y * 27.0 );
+       float gNear = 1.0 - smoothstep( 14.0, 44.0, length( vGrainPos - cameraPosition ) );
+       diffuseColor.rgb *= 1.0 + ( gCoarse * 0.055 + gFine * 0.032 ) * gNear;`
+    )
+}

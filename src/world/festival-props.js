@@ -150,6 +150,39 @@ const PROPS = {
       l.translate(sx * 1.1, 1.82, 0.66)
       glow.push(solidColor(l, PALETTE.paper))
     }
+
+    /**
+     * The nobori — the tall banner that says there is a stall here.
+     *
+     * Without it the stall is unfindable, and the reason is simple arithmetic: the counter and
+     * its awning together stand about 2.2 units, and the terrace around it is nearly six. It
+     * is not hidden, it is *below the roofline*, so from anywhere except the same stretch of
+     * street you are looking straight over the top of it. A proximity prompt does not help
+     * either — a prompt you have to already be standing next to is not wayfinding.
+     *
+     * Nine units clears the tallest thing a district builds, so the banner is visible from
+     * across the town and from the map view above it, and the paper lantern on top puts it on
+     * the night skyline as well. This is the only part of the stall meant to be seen from far
+     * away, which is why it is the only part built tall and thin.
+     */
+    const pole = new THREE.CylinderGeometry(0.05, 0.06, 9, 6)
+    pole.translate(-1.35, 4.5, 0)
+    solid.push(solidColor(pole, PALETTE.timberDark))
+
+    // The banner itself: a long vertical cloth, hung off the pole down its upper half.
+    const cloth = new THREE.BoxGeometry(0.05, 3.4, 0.62)
+    cloth.translate(-1.32, 6.5, 0.34)
+    solid.push(solidColor(cloth, PALETTE.cloth))
+    // A pale stripe down it, so it reads as a printed banner rather than a plank.
+    const stripe = new THREE.BoxGeometry(0.02, 3.0, 0.2)
+    stripe.translate(-1.28, 6.5, 0.34)
+    solid.push(solidColor(stripe, PALETTE.clothPale))
+
+    // The lantern at the masthead — what carries the marker after dark.
+    const masthead = lanternBody(0.26, 0.42)
+    masthead.translate(-1.35, 9.2, 0)
+    glow.push(solidColor(masthead, PALETTE.paper))
+
     return { solid, glow, radius: 1.35 }
   },
 

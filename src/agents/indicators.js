@@ -8,6 +8,7 @@ import {
   mdiSleep,
   mdiCreation,
   mdiLogout,
+  mdiChatProcessing,
 } from '@mdi/js'
 
 /**
@@ -21,7 +22,9 @@ import {
  */
 
 const COLS = 4
-const ROWS = 2
+// Three rows rather than two. The grid was exactly full at eight, and the chat badge is the
+// ninth — the spare cells cost nothing but the texels nobody samples.
+const ROWS = 3
 
 /** Where the badge's bottom edge sits: a shade above the crown of the helmet. */
 const HEAD_CLEAR = 1.42
@@ -36,6 +39,18 @@ export const BADGE = {
   sleeping: 5,
   spawning: 6,
   leaving: 7,
+  /**
+   * Two characters talking to each other.
+   *
+   * The odd one out in this list, and deliberately so: every other badge reports what a
+   * *thread* is doing, and this one reports what a character is doing about somebody else's.
+   * It earns its place because the alternative was invisible. Conversations were happening —
+   * measured, eight characters paired off in a colony — and the only outward sign was a
+   * subtle change of body-language clip and a turn of the head, which at any distance past a
+   * couple of metres is nothing at all. A world where the inhabitants notice each other has
+   * to *look* like one.
+   */
+  chat: 8,
 }
 
 /** Badge tint. Pushed past 1.0 so the bloom pass gives them a soft halo. */
@@ -48,6 +63,8 @@ const BADGE_COLOR = {
   5: [0.9, 1.0, 1.7],
   6: [2.4, 1.4, 0.75],
   7: [1.2, 1.3, 1.35],
+  // Warm and soft — it is a pleasant thing happening, not something that wants you.
+  8: [2.2, 1.7, 2.6],
 }
 
 /**
@@ -63,6 +80,12 @@ const FADE_BY_BADGE = {
   [BADGE.leaving]: 0.5,
   [BADGE.paused]: 0.6,
   [BADGE.sleeping]: 1,
+  /**
+   * Fades late. A conversation is the main sign of life in a quiet colony, so it should
+   * survive a crowd — but it must still yield to the two badges that are actually asking
+   * you for something.
+   */
+  [BADGE.chat]: 0.3,
 }
 
 export class Indicators {
@@ -249,7 +272,17 @@ export class Indicators {
  * — the glyph has to carry as a silhouette. Material's set is drawn filled to begin with,
  * one closed path per icon, so there is nothing to stroke and nothing to parse.
  */
-const ICON_PATHS = [mdiHelpCircle, mdiAlert, mdiHammer, mdiCheckBold, mdiPause, mdiSleep, mdiCreation, mdiLogout]
+const ICON_PATHS = [
+  mdiHelpCircle,
+  mdiAlert,
+  mdiHammer,
+  mdiCheckBold,
+  mdiPause,
+  mdiSleep,
+  mdiCreation,
+  mdiLogout,
+  mdiChatProcessing,
+]
 
 /**
  * The badge atlas. Red channel = the glyph, green channel = the plate's alpha — packing two

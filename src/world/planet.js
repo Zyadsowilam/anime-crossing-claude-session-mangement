@@ -293,7 +293,7 @@ export function createTerrain(planet, detail, seed = 1337) {
  */
 let _groundDetail = null
 
-function groundDetail(size = 256) {
+function groundDetail(size = 512) {
   if (_groundDetail) return _groundDetail
   const canvas = document.createElement('canvas')
   canvas.width = size
@@ -310,10 +310,17 @@ function groundDetail(size = 256) {
       n += Math.sin(v * 2 + Math.cos(u * 5)) * 0.34
       n += Math.sin(u * 7 + v * 5) * 0.16
       const grain = (Math.random() - 0.5) * 0.5
-      // Amplitudes are deliberately generous. The first pass at this was half as strong and
-      // measurably present but invisible — a detail map you have to be told about is doing
-      // nothing for the person looking at the screen.
-      const t = 0.86 + n * 0.11 + grain * 0.13
+      /**
+       * The random grain carries this, and the sines barely show.
+       *
+       * The balance went the other way first and the result was a visible plaid: the ripple
+       * is built from sines, sines are periodic, and a periodic pattern tiled across a field
+       * reads as woven fabric the moment it is strong enough to see at all. Random noise has
+       * no period to spot, so it can be pushed much harder — it is the part that actually
+       * looks like ground. The ripple is kept only to stop the grain reading as flat static,
+       * at roughly a third of its previous strength.
+       */
+      const t = 0.88 + n * 0.035 + grain * 0.15
       const val = Math.max(0, Math.min(255, Math.round(255 * t)))
       const i = (y * size + x) * 4
       d[i] = val
@@ -327,8 +334,15 @@ function groundDetail(size = 256) {
   const tex = new THREE.CanvasTexture(canvas)
   tex.wrapS = THREE.RepeatWrapping
   tex.wrapT = THREE.RepeatWrapping
-  // The plane's UVs run 0..1 across the whole world, so this is "one tile per five units".
-  const tiles = GROUND_SIZE / 5
+  /**
+   * One tile per ten units rather than five.
+   *
+   * Halving the frequency halves how often any repeat can be spotted in a single view, and at
+   * 512 rather than 256 the texel density underfoot is unchanged — the tile is twice as wide
+   * and twice as detailed, so the only thing that actually changed is how far apart the seams
+   * are.
+   */
+  const tiles = GROUND_SIZE / 10
   tex.repeat.set(tiles, tiles)
   tex.colorSpace = THREE.SRGBColorSpace
   // The ground is almost always seen at a grazing angle, which is exactly the case that turns

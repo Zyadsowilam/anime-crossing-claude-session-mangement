@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
-import { DECK_TEXTURE_SCALE, KERB_UV, deckSurface, kerbSurface } from './surfaces.js'
+import { DECK_TEXTURE_SCALE, KERB_UV, applyGrain, deckSurface, kerbSurface } from './surfaces.js'
 import { buildFestivalProp, glowMaterial, mergeProps, propMaterial } from './festival-props.js'
 import { buildVillage, kindsForStyle } from './village.js'
 import { buildingUniforms } from './buildings.js'
@@ -68,6 +68,9 @@ function sceneryMaterial() {
          float paper = smoothstep( 0.72, 0.9, dot( diffuseColor.rgb, vec3( 0.32, 0.34, 0.2 ) ) );
          totalEmissiveRadiance += diffuseColor.rgb * paper * uNight * 0.9;`
       )
+    // Something on the plaster. Applied last, and on its own line: it rewrites both shaders
+    // in place and returns nothing, so it cannot sit inside the chain above.
+    applyGrain(shader)
   }
   return mat
 }

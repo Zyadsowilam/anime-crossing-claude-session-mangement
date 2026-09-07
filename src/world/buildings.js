@@ -3,6 +3,7 @@ import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { mulberry } from './planet.js'
 import { buildVillage, kindsForStyle, VILLAGE_KINDS } from './village.js'
 import { ATLAS, CELL, atlasTexture, cellMask, part } from './kit.js'
+import { applyGrain } from './surfaces.js'
 
 /**
  * Colony buildings — one per thread, assembled out of KayKit's *Space Base Bits* (CC0) and
@@ -696,6 +697,9 @@ function decorateVillage(material, uniforms) {
          float band = 1.0 - smoothstep( 0.0, 0.22, vLocalY - ground );
          totalEmissiveRadiance += uAccent * band * ( 1.0 - step( 0.999, uProgress ) ) * 1.5;`
       )
+    // Surface grain, applied last and on its own line — it rewrites both shaders in place
+    // and returns nothing, so it cannot be part of the chain above.
+    applyGrain(shader)
   }
   return material
 }

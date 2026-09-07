@@ -43,9 +43,18 @@
 const CHAT_RANGE = 13
 /** How close a spectator tries to get to whatever it walked over to look at. */
 const WATCH_RANGE = 2.6
-/** Conversations last somewhere in this range, in seconds. */
-const CHAT_MIN = 5
-const CHAT_MAX = 13
+/**
+ * Conversations last somewhere in this range, in seconds.
+ *
+ * Lengthened, because the thing being tuned is not really the conversation — it is the odds
+ * that you are looking when one happens. Only an idle character will talk, and in a colony
+ * where most threads have been dormant for days that is a dozen people out of seventy; at
+ * five to thirteen seconds apiece you could walk a whole district and catch nothing, which
+ * is exactly the "they never interact" the short version produced. Nothing here makes them
+ * chat more often, only for longer once they do.
+ */
+const CHAT_MIN = 11
+const CHAT_MAX = 26
 /** Spectating lasts longer — the news is the point, not the company. */
 const WATCH_SECONDS = 9
 /** How often the whole crowd is reconsidered. Twice a second is far more than enough. */

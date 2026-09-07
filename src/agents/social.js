@@ -25,8 +25,22 @@
  * each other, which looks worse than no conversation at all.
  */
 
-/** How close two characters have to be before they will strike up a conversation. */
-const CHAT_RANGE = 6.5
+/**
+ * How close two characters have to be before they will strike up a conversation.
+ *
+ * Sized against how far apart colleagues actually stand, which changed completely when a
+ * repo stopped being one small deck and became a district. Characters wait at their own
+ * building's door, and those doors are now dealt down a thirty-unit avenue instead of
+ * clustered on an eleven-unit platform — measured over a live colony, the median distance
+ * from a character to its nearest same-repo neighbour is **11 units**. At the old 6.5 almost
+ * no pair in the colony was ever eligible, and the answer to "why does nobody talk to each
+ * other" was that the constant had been left behind by the map.
+ *
+ * Comfortably past that median, so next door and across the street both count, and still
+ * short enough that a conversation is with somebody you are plainly standing near rather
+ * than shouted down the length of the high street.
+ */
+const CHAT_RANGE = 13
 /** How close a spectator tries to get to whatever it walked over to look at. */
 const WATCH_RANGE = 2.6
 /** Conversations last somewhere in this range, in seconds. */

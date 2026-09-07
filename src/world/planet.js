@@ -348,9 +348,9 @@ const SCATTER = {
     { part: 'Tree_1_C_Color1', weight: 1, size: [0.25, 0.4], sink: 0.02, upright: true },
     { part: 'Tree_3_C_Color1', weight: 1, size: [0.22, 0.38], sink: 0.02, upright: true },
     { part: 'Tree_4_C_Color1', weight: 1, size: [0.2, 0.35], sink: 0.02, upright: true },
-    { part: 'Bush_1_E_Color1', weight: 3, size: [0.5, 1.1], sink: 0.06, upright: true },
-    { part: 'Bush_3_B_Color1', weight: 3, size: [0.5, 1.1], sink: 0.06, upright: true },
-    { part: 'Grass_2_D_Color1', weight: 4, size: [0.6, 1.3], sink: 0.05, upright: true },
+    { part: 'Bush_1_E_Color1', weight: 3, size: [0.5, 1.1], sink: 0.06, upright: true, shrub: true },
+    { part: 'Bush_3_B_Color1', weight: 3, size: [0.5, 1.1], sink: 0.06, upright: true, shrub: true },
+    { part: 'Grass_2_D_Color1', weight: 4, size: [0.6, 1.3], sink: 0.05, upright: true, ground: true },
     { part: 'Rock_1_D_Color1', weight: 2, size: [0.4, 0.9], sink: 0.3, tint: true },
   ],
   rocks: [
@@ -438,6 +438,21 @@ export function createScatter(planet, density, keepClear = [], seed = 4242) {
   // Anything not tinted to the world's rock takes its foliage tint instead, so one pack of
   // summer-green trees dresses a blossom hillside and a frozen one from the same atlas.
   const foliage = new THREE.Color(planet.foliage || 0xffffff)
+  /**
+   * Grass is not blossom.
+   *
+   * Everything that grew used to take the world's `foliage` colour, which on the sakura
+   * world is a bright pink — right for a canopy, and badly wrong for the thing underfoot.
+   * `Grass_2_D` is the single most common item in the recipe, so a green field came out
+   * speckled all over with magenta blades: not blossom, a rash.
+   *
+   * Ground cover takes the world's own high ground colour instead, which is already the
+   * right answer on every world for free — green on the blossom hills and the sky isles,
+   * pale on the snow, dark on the neon sprawl, earth-brown at the festival. Shrubs sit
+   * between the two: mostly ground, with enough of the canopy in them to read as flowering.
+   */
+  const groundCover = new THREE.Color(planet.ground?.high ?? 0x7fae55)
+  const shrub = groundCover.clone().lerp(foliage, 0.35)
   const dummy = new THREE.Object3D()
   const color = new THREE.Color()
   const fill = new Array(kinds.length).fill(0)
@@ -492,6 +507,8 @@ export function createScatter(planet, density, keepClear = [], seed = 4242) {
     // Both are now the *final* colour rather than a filter, because the shader above has
     // already reduced the atlas to shading. No compensating boost, and none wanted.
     if (kind.tint) color.copy(rock)
+    else if (kind.ground) color.copy(groundCover)
+    else if (kind.shrub) color.copy(shrub)
     else color.copy(foliage)
     color.offsetHSL((rand() - 0.5) * 0.03, (rand() - 0.5) * 0.08, (rand() - 0.5) * 0.14)
     mesh.setColorAt(slot, color)

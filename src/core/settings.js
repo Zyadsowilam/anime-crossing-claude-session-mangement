@@ -269,10 +269,52 @@ export class Settings {
   }
 }
 
+/**
+ * One-time corrections applied to settings that were saved by an older build.
+ *
+ * Changing `DEFAULT_PRESET` only ever affects somebody opening the page for the first time —
+ * anyone who has run it before has their own copy in `localStorage`, and that copy wins. So
+ * the people most in need of the new default are exactly the ones who never get it.
+ *
+ * Ultra renders at 1.5x the display's own resolution, which is 2.25 times the pixels through
+ * two full-screen passes, and it was the default for long enough that most existing installs
+ * are still carrying it — on a world that has since grown from one small colony to two dozen
+ * cities. This steps those installs down to High, which is identical in every other respect.
+ *
+ * It runs once and records that it ran, so choosing Ultra deliberately afterwards sticks.
+ */
+const MIGRATION = 'preset-ultra-to-high'
+
+function migrate(raw) {
+  const done = Array.isArray(raw.migrations) ? raw.migrations : []
+  if (done.includes(MIGRATION)) return raw
+  if (raw.preset === 'ultra') {
+    raw.preset = 'high'
+    const high = PRESETS.high
+    if (high) for (const [k, v] of Object.entries(high.values)) raw[k] = v
+  }
+  raw.migrations = [...done, MIGRATION]
+  return raw
+}
+
 function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORE_KEY) || '{}')
-    return raw && typeof raw === 'object' ? raw : {}
+    if (!raw || typeof raw !== 'object') return {}
+    const before = raw.migrations
+    const next = migrate(raw)
+    // Write the record back immediately rather than waiting for the debounced save that only
+    // fires when something else changes a setting. Without this the flag never lands, the
+    // migration runs again on the next load, and it would keep overriding Ultra every time
+    // somebody deliberately chose it.
+    if (next.migrations !== before) {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(next))
+      } catch {
+        /* private mode, quota, or no storage at all — the migration is not worth failing over */
+      }
+    }
+    return next
   } catch {
     return {}
   }

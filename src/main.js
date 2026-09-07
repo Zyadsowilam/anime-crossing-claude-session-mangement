@@ -696,6 +696,25 @@ window.addEventListener('keydown', (e) => {
     return
   }
 
+  /**
+   * While you are walking, the movement keys are *only* movement keys.
+   *
+   * Both handlers listen on `window`, and `walk.js` calls `preventDefault()` on the keys it
+   * uses — which stops the browser scrolling the page and does nothing whatever to stop this
+   * switch also running. So every step you took fired a map-mode shortcut underneath it:
+   *
+   * - **`A` archived the selected thread.** Talking to somebody selects their thread (`E`
+   *   calls `talkTo` → `select`), so the ordinary sequence of walking up to a character,
+   *   pressing `E`, and then strafing away past them archived the thread you had just opened.
+   *   Silently, with no confirmation and no undo — the toast said "Archived — heading home"
+   *   and the character walked out through the gate.
+   * - **`S` opened the settings panel**, every single time you backed up.
+   *
+   * `preventDefault` was never the right tool for this; the two listeners are peers and one
+   * cannot suppress the other. The fix is to say plainly which mode owns which keys.
+   */
+  if (walk.active && WALK_KEYS.has(e.code)) return
+
   switch (e.key) {
     case 'm':
     case 'M': {
@@ -913,6 +932,24 @@ async function boot() {
  * step with the harness. What talking adds is the half a dashboard cannot do: the character
  * says something, in the voice of whatever genre its thread was dealt.
  */
+/**
+ * The keys walk mode owns outright. Anything here is ignored by the map's shortcuts while you
+ * are on foot — see the guard in the keydown handler for why that has to be explicit.
+ */
+const WALK_KEYS = new Set([
+  'KeyW',
+  'KeyA',
+  'KeyS',
+  'KeyD',
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'KeyE',
+  'KeyV',
+  'KeyR',
+])
+
 function talkTo(agent) {
   if (!agent) {
     hud.hint('Nobody close enough. Walk up to someone and press E.')

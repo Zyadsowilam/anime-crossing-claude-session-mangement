@@ -174,6 +174,20 @@ function run(prompt) {
        */
       if (text && !CLI_FAILURE.test(text)) return resolve(text)
       const why = (text || errOut.trim() || 'no answer').split(String.fromCharCode(10))[0]
+      /**
+       * Say what to *do* about it, not just what went wrong.
+       *
+       * This is far and away the most common way this feature fails, and the raw CLI text is
+       * actively misleading: people see their desktop Claude Code working perfectly and
+       * reasonably conclude the relay is broken. It is not — the two authenticate separately.
+       * The desktop app has its own session, and reading your threads off disk needs no
+       * credentials at all, so everything *else* in this world keeps working while this one
+       * feature is signed out.
+       */
+      if (/failed to authenticate|oauth|not logged in|please run/i.test(why)) {
+        reject(new Error('The claude CLI is signed out — run `claude auth login` in a terminal. (Your desktop app signs in separately.)'))
+        return
+      }
       reject(new Error(why.slice(0, 180)))
     })
 

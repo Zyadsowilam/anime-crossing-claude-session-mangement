@@ -21,6 +21,7 @@
  *    describing.
  */
 
+import fsp from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 
 /** How long to wait for a reply before giving up on it. */
@@ -115,9 +116,20 @@ export async function confer(body) {
   if (!a.title && !a.project) return { ok: false, error: 'Nothing known about that thread' }
 
   const prompt = buildPrompt(a, b)
+  // Only a directory that actually exists is passed through; anything else falls back to the
+  // server's own cwd rather than failing the call.
+  let cwd = null
+  const asked = field(body?.cwd)
+  if (asked) {
+    try {
+      if ((await fsp.stat(asked)).isDirectory()) cwd = asked
+    } catch {
+      cwd = null
+    }
+  }
   busy = true
   try {
-    const reply = await run(prompt)
+    const reply = await run(prompt, cwd)
     return { ok: true, reply: reply.slice(0, REPLY_MAX), prompt }
   } catch (err) {
     return { ok: false, error: err?.message || 'The relay failed', prompt }
@@ -133,13 +145,27 @@ export async function confer(body) {
  * length limit and an argument this shape is exactly the sort that trips quoting bugs across
  * three different shells; stdin has neither problem.
  */
-function run(prompt) {
+function run(prompt, cwd = null) {
   return new Promise((resolve, reject) => {
     const args = ['-p', '--allowed-tools', '', '--max-turns', '1']
     let child
     try {
       child = spawn('claude', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
+        /**
+         * Run in the thread's *own* folder, not wherever this server happens to live.
+         *
+         * `--allowed-tools ''` stops the model doing anything, and it turns out not to stop it
+         * *knowing* things: Claude Code puts the working directory's git state into context
+         * before the prompt is even read. Left at the server's own cwd, a session asked about
+         * two manufacturing threads confidently described the uncommitted files of the game
+         * it was running inside — fluent, specific, and about the wrong repository entirely.
+         *
+         * Pointing it at the thread's directory turns that from a bug into the best part of
+         * the feature: the answer now comes with real knowledge of the actual codebase the two
+         * threads share.
+         */
+        cwd: cwd || undefined,
         // `claude` is a shell shim on Windows, so it needs the shell to be found on PATH.
         shell: process.platform === 'win32',
       })

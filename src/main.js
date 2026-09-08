@@ -1241,7 +1241,15 @@ const chatterV = new THREE.Vector3()
  * The answer is real, so it is shown as the character saying it rather than as a toast.
  */
 async function runConfer(agent) {
-  const partner = agent?.social?.with
+  /**
+   * The same fallback the menu uses, and it has to be the same or the option is a dead button.
+   *
+   * Pressing E ends the conversation you are interrupting, so by the time this runs `social`
+   * is already null. The menu learned that and started falling back to `lastPartner`; this did
+   * not, so the option appeared, was clickable, and silently returned — which looks exactly
+   * like the feature being broken rather than like two lookups disagreeing.
+   */
+  const partner = agent?.social?.with || agent?.lastPartner || null
   if (!agent || !partner) return
   const mine = threads.find((t) => t.id === agent.id) || agent.thread || {}
   const theirs = threads.find((t) => t.id === partner.id) || partner.thread || {}
@@ -1262,7 +1270,9 @@ async function runConfer(agent) {
     const res = await fetch('/api/confer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: pack(agent, mine), to: pack(partner, theirs) }),
+      // The folder these two threads actually share, so the answer is grounded in their
+      // repository rather than in whatever directory this server was started from.
+      body: JSON.stringify({ from: pack(agent, mine), to: pack(partner, theirs), cwd: mine.projectPath || mine.cwd || '' }),
     })
     const data = await res.json()
     if (!data.ok) throw new Error(data.error || 'The relay failed')
